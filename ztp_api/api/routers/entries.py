@@ -1,0 +1,267 @@
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from ztp_api.api import crud, schemas, models
+from ztp_api.api.dependencies import get_db, get_us_api, get_netbox_session, get_kea_db, get_settings
+from ztp_api.api.ztp.kea_dhcp import add_dhcp
+import re
+import ipaddress
+
+entries_router = APIRouter()
+
+
+@entries_router.get('/', response_model=list[schemas.Entry])
+async def entries_list(skip: int = 0, limit: int = 100, db=Depends(get_db)):
+    entries = await crud.entry.get_multi(db, skip=skip, limit=limit)
+    return entries
+
+
+@entries_router.post('/', response_model=schemas.Entry)
+async def entries_create(req: schemas.EntryCreateRequest,
+                         background_tasks: BackgroundTasks,
+                         db=Depends(get_db),
+                         kea_db=Depends(get_kea_db),
+                         us=Depends(get_us_api),
+                         nb=Depends(get_netbox_session),
+                         settings=Depends(get_settings)):
+    resp = dict(req.copy())
+    dirty_mac = resp.get('mac_address')
+    clean_mac = ''.join([character for character in dirty_mac.lower() if character in '0123456789abcdef'])
+    resp['mac_address'] = clean_mac
+    mount_type = resp.pop('mountType')
+    data = resp.pop('data')
+    new_entry_data = {}
+    if mount_type == 'newHouse':
+        new_entry_data.update({'task_id': data.task_id})
+        try:
+            task_data = await us.task.show(id=data.task_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail={
+                'detail': [
+                    {
+                        'loc': ['body', 'data', 'task_id'],
+                        'msg': str(exc),
+                    }
+                ]
+            })
+        target_field = list(filter(lambda x: x.id == 266, task_data.additional_data))
+        if not target_field:
+            raise HTTPException(status_code=422, detail={
+                'detail': [
+                    {
+                        'loc': ['body', 'data', 'task_id'],
+                        'msg': 'В задании не указано ТЗ от ШПД',
+                    }
+                ]
+            })
+        target_field = target_field[0].value
+        subnet = re.search('mgmt (\d+\.\d+\.\d+\.\d+/\d+)', target_field)
+        if not subnet:
+            raise HTTPException(status_code=422, detail={
+                'detail': [
+                    {
+                        'loc': ['body', 'data', 'task_id'],
+                        'msg': 'В ТЗ от ШПД не указана менеджмент сетка',
+                    }
+                ]
+            })
+        subnet = subnet.group(1)
+        async with nb.get('/api/ipam/prefixes/', params={'prefix': subnet}) as response:
+            answer = await response.json()
+            if len(answer['results']) != 1:
+                raise HTTPException(status_code=422, detail={
+                    'detail': [
+                        {
+                            'loc': ['body', 'data', 'task_id'],
+                            'msg': 'Указанная в заявке менеджмент сетка не ищется в нетбоксе',
+                        }
+                    ]
+                })
+            prefix_info = answer['results'][0]
+            vlan_info = prefix_info.get('vlan')
+            if not vlan_info:
+                raise HTTPException(status_code=422, detail={
+                    'detail': [
+                        {
+                            'loc': ['body', 'data', 'task_id'],
+                            'msg': 'К указанной в заявке менеджмент сетке не привязан влан в нетбоксе',
+                        }
+                    ]
+                })
+        async with nb.get('/api/ipam/prefixes/', params={'vlan_id': vlan_info['id']}) as response:
+            answer = await response.json()
+            if not answer.get('results'):
+                raise HTTPException(status_code=422, detail={
+                    'detail': [
+                        {
+                            'loc': ['body', 'data', 'task_id'],
+                            'msg': 'Невозможная ошибка: к влану не привязана ни одна сетка',
+                        }
+                    ]
+                })
+            available_prefix_ids = [prefix['id'] for prefix in answer['results']]
+        new_ip = None
+        for prefix_id in available_prefix_ids:
+            async with nb.get(f'/api/ipam/prefixes/{prefix_id}/available-ips/') as response:
+                answer = await response.json()
+                if answer:
+                    new_ip = answer[0]['address']
+                    new_ip = ipaddress.IPv4Interface(new_ip).ip.exploded
+                    break
+        if not new_ip:
+            raise HTTPException(status_code=422, detail={
+                'detail': [
+                    {
+                        'loc': ['body', 'data', 'task_id'],
+                        'msg': 'Не получилось выбрать айпишник -- нет свободных.',
+                    }
+                ]
+            })
+        new_entry_data.update({'ip_address': new_ip})
+    elif mount_type == 'newSwitch':
+        async with nb.get('/api/ipam/prefixes/', params={'contains': data.parent_switch.exploded}) as response:
+            answer = await response.json()
+            if len(answer['results']) != 1:
+                raise HTTPException(status_code=422, detail={
+                    'detail': [
+                        {
+                            'loc': ['body', 'data', 'parent_switch'],
+                            'msg': 'Сетка вышестоящего свича не ищется в нетбоксе',
+                        }
+                    ]
+                })
+            prefix_info = answer['results'][0]
+            vlan_info = prefix_info.get('vlan')
+            if not vlan_info:
+                raise HTTPException(status_code=422, detail={
+                    'detail': [
+                        {
+                            'loc': ['body', 'data', 'parent_switch'],
+                            'msg': 'К сетке вышестоящего свича не привязан влан в нетбоксе',
+                        }
+                    ]
+                })
+        async with nb.get('/api/ipam/prefixes/', params={'vlan_id': vlan_info['id']}) as response:
+            answer = await response.json()
+            if not answer.get('results'):
+                raise HTTPException(status_code=422, detail={
+                    'detail': [
+                        {
+                            'loc': ['body', 'data', 'parent_switch'],
+                            'msg': 'Невозможная ошибка: к влану не привязана ни одна сетка',
+                        }
+                    ]
+                })
+            available_prefix_ids = [prefix['id'] for prefix in answer['results']]
+        new_ip = None
+        for prefix_id in available_prefix_ids:
+            async with nb.get(f'/api/ipam/prefixes/{prefix_id}/available-ips/') as response:
+                answer = await response.json()
+                if answer:
+                    new_ip = answer[0]['address']
+                    new_ip = ipaddress.IPv4Interface(new_ip).ip.exploded
+                    break
+        if not new_ip:
+            raise HTTPException(status_code=422, detail={
+                'detail': [
+                    {
+                        'loc': ['body', 'data', 'parent_switch'],
+                        'msg': 'Не получилось выбрать айпишник -- нет свободных.',
+                    }
+                ]
+            })
+        new_entry_data.update({'parent_switch': data.parent_switch.exploded, 'parent_port': data.parent_port})
+        new_entry_data.update({'ip_address': new_ip})
+    elif mount_type == 'changeSwitch':
+        try:
+            device_id = await us.device.get_device_id(object_type='switch',
+                                                      data_typer='ip',
+                                                      data_value=data.ip_address.exploded)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail={
+                'detail': [
+                    {
+                        'loc': ['body', 'data', 'ip_address'],
+                        'msg': str(exc),
+                    }
+                ]
+            })
+        try:
+            device_data = await us.device.get_data(object_type='switch', object_id=device_id, is_hide_ifaces_data=1)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail={
+                'detail': [
+                    {
+                        'loc': ['body', 'data', 'ip_address'],
+                        'msg': str(exc),
+                    }
+                ]
+            })
+        uplink = device_data[0].uplink_iface
+        if len(uplink) == 1:
+            for uplink_port in uplink:
+                uplink = uplink[0]
+                try:
+                    commutation_data = await us.commutation.get_data(object_type='switch', object_id=device_id, is_finish_data='1')
+                except ValueError as exc:
+                    break
+                try:
+                    uplink_neighbour = commutation_data.commutation[str(uplink)]['0']
+                except KeyError as exc:
+                    break
+                parent_port = uplink_neighbour.interface
+                try:
+                    neighbour_data = await us.device.get_data(object_type='switch', object_id=uplink_neighbour.object_id, is_hide_ifaces_data=1)
+                except ValueError as exc:
+                    break
+                parent_switch = neighbour_data[0].host
+                new_entry_data.update({'parent_switch': parent_switch, 'parent_port': parent_port})
+        new_entry_data.update({'ip_address': data.ip_address.exploded})
+
+    resp.update({'status': models.entries.ZTPStatus.WAITING})
+    resp.update(new_entry_data)
+    try:
+        inventory_id = await us.inventory.get_inventory_id(data_typer='serial_number', data_value=resp['serial_number'])
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail={
+            'detail': [
+                {
+                    'loc': ['body', 'data', 'serial_number'],
+                    'msg': str(exc),
+                }
+            ]
+        })
+    inventory_id = inventory_id['id']
+    inventory_data = await us.inventory.get_inventory(id=inventory_id)
+    model_name = inventory_data['data']['name']
+    models_db = await crud.model.get_multi(db=db)
+    model = list(filter(lambda x: x.model == model_name, models_db))
+    if not model:
+        raise HTTPException(status_code=422, detail={
+            'detail': [
+                {
+                    'loc': ['body', 'data', 'serial_number'],
+                    'msg': f'Модель {model_name} ещё не добавлена в ZTP',
+                }
+            ]
+        })
+    model = model[0]
+    resp.update({'model_id': model.id})
+    answer = await crud.entry.create(db, obj_in=resp)
+    background_tasks.add_task(add_dhcp, answer, kea_db, nb, settings)
+    return answer
+
+
+@entries_router.get('/{entry_id}/', response_model=schemas.Entry)
+async def entries_read(entry_id: int, db=Depends(get_db)):
+    entry = await crud.entry.get(db=db, id=entry_id)
+    return entry
+
+
+@entries_router.patch('/{entry_id}', response_model=schemas.Entry)
+async def entries_partial_update(req: schemas.EntryPatchRequest):
+    pass
+
+
+@entries_router.delete('/{entry_id}/')
+async def entries_delete(entry_id: int, db=Depends(get_db)):
+    answer = await crud.entry.remove(db, id=entry_id)
+    return answer

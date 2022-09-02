@@ -1,0 +1,8 @@
+/cfg.yml
+/venv/
+/deviceapi.egg-info/
+/.idea/
+/ztp_api.egg-info/
+/ztp_api/alembic.ini
+/ztp_api/cfg.py
+/settings.yml
