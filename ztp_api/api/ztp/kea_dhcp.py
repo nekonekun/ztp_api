@@ -1,11 +1,8 @@
-from fastapi import Depends
 from ztp_api.api.models.kea_dhcp import Hosts, DHCPOptions
 from ztp_api.api.models.entries import Entry
-from ztp_api.api.dependencies import get_us_api, get_netbox_session, get_kea_db, get_settings
-from sqlalchemy.dialects.postgresql import BYTEA
-from sqlalchemy import func
+from ztp_api.api.models.models import Model
 import ipaddress
-import binascii
+from sqlalchemy.future import select
 
 
 # FIXME
@@ -24,10 +21,6 @@ def hexstr_to_bytea(mac: str) -> bytes:
     return bytes([int(mac[i:i + 2], 16) for i in range(0, len(mac), 2)])
 
 
-def ipmask_to_bytea(netmask: str) -> bytes:
-    return bytes([int(octet) for octet in netmask.split('.')])
-
-
 def generate_option_125(firmware_filename: str):
     dlink_id = '000000AB'
     suboption_length = hex(1 + 1 + len(firmware_filename))[2:].upper().zfill(2)
@@ -37,8 +30,11 @@ def generate_option_125(firmware_filename: str):
     return dlink_id + suboption_length + suboption_code + filename_length + hex_filename
 
 
-async def add_dhcp(device: Entry, kea_db, nb, settings):
-    print(settings)
+async def add_dhcp(device: Entry, db, kea_db, nb, settings):
+    stmt = select(Model).where(Model.id == device.model_id)
+    response = await db.execute(stmt)
+    device_model = response.scalars().one()
+
     values = {
         'dhcp_identifier': hexstr_to_bytea(device.mac_address),
         'dhcp_identifier_type': 0,
@@ -49,11 +45,10 @@ async def add_dhcp(device: Entry, kea_db, nb, settings):
     kea_db.add(new_dhcp_row)
     await kea_db.flush()
 
-    # TODO Вытащить из нетбокса маску сети, добавить опцию
     async with nb.get('/api/ipam/prefixes/', params={'contains': device.ip_address}) as response:
         results = await response.json()
     results = results['results']
-    results.sort(key=lambda x: x['prefix'].split('/')[1], reverse=True)
+    results.sort(key=lambda x: int(x['prefix'].split('/')[1]), reverse=True)
     prefix = results[0]['prefix']
     netmask = bytes(str(int(ipaddress.IPv4Interface(results[0]['prefix']).netmask)), 'utf-8')
     values = {
@@ -65,11 +60,8 @@ async def add_dhcp(device: Entry, kea_db, nb, settings):
         'persistent': False,
     }
     new_option = DHCPOptions(**values)
-    print(new_option)
     kea_db.add(new_option)
-    await kea_db.flush()
 
-    # TODO Вытащить из нетбокса шлюз, добавить опцию
     async with nb.get('/api/ipam/ip-addresses/', params={'parent': prefix, 'tag': 'gw'}) as response:
         results = await response.json()
     results = results['results']
@@ -83,11 +75,8 @@ async def add_dhcp(device: Entry, kea_db, nb, settings):
         'persistent': False,
     }
     new_option = DHCPOptions(**values)
-    print(new_option)
     kea_db.add(new_option)
-    await kea_db.flush()
 
-    # TODO Добавить адрес тфтп сервера с конфигом в опцию
     values = {
         'code': 66,
         'value': bytes(settings.TFTP_SERVER, 'utf-8'),
@@ -97,11 +86,8 @@ async def add_dhcp(device: Entry, kea_db, nb, settings):
         'persistent': False,
     }
     new_option = DHCPOptions(**values)
-    print(new_option)
     kea_db.add(new_option)
-    await kea_db.flush()
 
-    # TODO Добавить адрес файла с конфигом в опцию
     filename = settings.TFTP_FOLDER_STRUCTURE['configs_initial'] + device.ip_address + '.cfg'
     values = {
         'code': 67,
@@ -112,11 +98,8 @@ async def add_dhcp(device: Entry, kea_db, nb, settings):
         'persistent': False,
     }
     new_option = DHCPOptions(**values)
-    print(new_option)
     kea_db.add(new_option)
-    await kea_db.flush()
 
-    # TODO Добавить адрес тфтп сервера с прошивкой в опцию
     tftp_ip = hex(int(ipaddress.IPv4Interface(settings.TFTP_SERVER).ip))[2:].zfill(8)
     values = {
         'code': 150,
@@ -127,12 +110,9 @@ async def add_dhcp(device: Entry, kea_db, nb, settings):
         'persistent': False,
     }
     new_option = DHCPOptions(**values)
-    print(new_option)
     kea_db.add(new_option)
-    await kea_db.flush()
 
-    # TODO Добавить адрес файла с прошивкой в опцию
-    filename = settings.TFTP_FOLDER_STRUCTURE['firmwares'] + device.model.firmware
+    filename = settings.TFTP_FOLDER_STRUCTURE['firmwares'] + device_model.firmware
     values = {
         'code': 125,
         'value': hexstr_to_bytea(generate_option_125(filename)),
@@ -142,8 +122,6 @@ async def add_dhcp(device: Entry, kea_db, nb, settings):
         'persistent': False,
     }
     new_option = DHCPOptions(**values)
-    print(new_option)
     kea_db.add(new_option)
-    await kea_db.flush()
 
     await kea_db.commit()

@@ -4,7 +4,7 @@ import aiohttp
 from functools import lru_cache
 from ztp_api.api.settings import Settings
 from fastapi import Depends
-from ftplib import FTP
+from ztp_api.api.services.tftp import TftpWrapper
 
 
 @lru_cache()
@@ -56,10 +56,9 @@ def get_tftp_session(settings: Settings = Depends(get_settings)):
     tftp_server = settings.TFTP_SERVER
     tftp_username = settings.TFTP_USERNAME
     tftp_password = settings.TFTP_PASSWORD
-    ftp_session = FTP(tftp_server, tftp_username, tftp_password)
-    ftp_session.connect()
-    ftp_session.login(tftp_username, tftp_password)
+    ftp_session = TftpWrapper(tftp_server, tftp_username, tftp_password)
+    ftp_session.start()
     try:
         yield ftp_session
     finally:
-        ftp_session.close()
+        ftp_session.finish()

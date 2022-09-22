@@ -18,17 +18,17 @@ async def models_create(req: schemas.ModelCreateRequest, db=Depends(get_db)):
 
 
 @models_router.get('/{model_id}/', response_model=schemas.Model)
-async def entries_read(model_id: int, db=Depends(get_db)):
+async def models_read(model_id: int, db=Depends(get_db)):
     entry = await crud.model.get(db=db, id=model_id)
     return entry
 
 
 @models_router.patch('/{model_id}', response_model=schemas.Model)
-async def entries_partial_update(req: schemas.ModelPatchRequest):
+async def models_partial_update(req: schemas.ModelPatchRequest):
     pass
 
 
 @models_router.delete('/{model_id}/')
-async def entries_delete(model_id: int, db=Depends(get_db)):
+async def models_delete(model_id: int, db=Depends(get_db)):
     answer = await crud.model.remove(db, id=model_id)
     return answer

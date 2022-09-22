@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from ztp_api.api import crud, schemas, models
-from ztp_api.api.dependencies import get_db, get_us_api, get_netbox_session, get_kea_db, get_settings
+from ztp_api.api.dependencies import get_db, get_us_api, get_netbox_session, get_kea_db, get_settings, get_tftp_session
 from ztp_api.api.ztp.kea_dhcp import add_dhcp
+from ztp_api.api.ztp.ztp import generate_initial_config
 import re
 import ipaddress
 
@@ -21,6 +22,7 @@ async def entries_create(req: schemas.EntryCreateRequest,
                          kea_db=Depends(get_kea_db),
                          us=Depends(get_us_api),
                          nb=Depends(get_netbox_session),
+                         tftp=Depends(get_tftp_session),
                          settings=Depends(get_settings)):
     resp = dict(req.copy())
     dirty_mac = resp.get('mac_address')
@@ -198,13 +200,12 @@ async def entries_create(req: schemas.EntryCreateRequest,
         uplink = device_data[0].uplink_iface
         if len(uplink) == 1:
             for uplink_port in uplink:
-                uplink = uplink[0]
                 try:
                     commutation_data = await us.commutation.get_data(object_type='switch', object_id=device_id, is_finish_data='1')
                 except ValueError as exc:
                     break
                 try:
-                    uplink_neighbour = commutation_data.commutation[str(uplink)]['0']
+                    uplink_neighbour = commutation_data.commutation[str(uplink_port)]['0']
                 except KeyError as exc:
                     break
                 parent_port = uplink_neighbour.interface
@@ -218,6 +219,7 @@ async def entries_create(req: schemas.EntryCreateRequest,
 
     resp.update({'status': models.entries.ZTPStatus.WAITING})
     resp.update(new_entry_data)
+
     try:
         inventory_id = await us.inventory.get_inventory_id(data_typer='serial_number', data_value=resp['serial_number'])
     except ValueError as exc:
@@ -246,7 +248,8 @@ async def entries_create(req: schemas.EntryCreateRequest,
     model = model[0]
     resp.update({'model_id': model.id})
     answer = await crud.entry.create(db, obj_in=resp)
-    background_tasks.add_task(add_dhcp, answer, kea_db, nb, settings)
+    background_tasks.add_task(add_dhcp, answer, db, kea_db, nb, settings)
+    background_tasks.add_task(generate_initial_config, answer, db, nb, tftp, settings)
     return answer
 
 

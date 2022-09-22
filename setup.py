@@ -51,6 +51,7 @@ setup(
         'console_scripts': [
             '{0} = {0}.api.__main__:main'.format(module_name),
             '{0}-db = {0}.db.__main__:main'.format(module_name),
+            '{0}-rq = {0}.celery.__main__:main'.format(module_name),
         ]
     },
     include_package_data=True

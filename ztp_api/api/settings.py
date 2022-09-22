@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     TFTP_USERNAME: str
     TFTP_PASSWORD: str
     TFTP_FOLDER_STRUCTURE: dict[str, str]
+    DEVICEAPI_URL: HttpUrl
 
     class Config:
         env_prefix = 'ZTPAPI_'
