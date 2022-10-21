@@ -24,17 +24,23 @@ async def entries_create(req: schemas.EntryCreateRequest,
                          nb=Depends(get_netbox_session),
                          tftp=Depends(get_tftp_session),
                          settings=Depends(get_settings)):
-    resp = dict(req.copy())
-    dirty_mac = resp.get('mac_address')
+    # resp = dict(req.copy())
+    new_entry_object = {}
+    dirty_mac = req.mac_address
     clean_mac = ''.join([character for character in dirty_mac.lower() if character in '0123456789abcdef'])
-    resp['mac_address'] = clean_mac
-    mount_type = resp.pop('mountType')
-    data = resp.pop('data')
-    new_entry_data = {}
+    new_entry_object['serial_number'] = req.serial_number
+    new_entry_object['node_id'] = req.node_id
+    new_entry_object['mac_address'] = clean_mac
+    new_entry_object['employee_id'] = req.employee_id
+    new_entry_object['node_id'] = req.node_id
+    # resp['mac_address'] = clean_mac
+    mount_type = req.mount_type
+    # data = resp.pop('data')
+    # new_entry_data = {}
     if mount_type == 'newHouse':
-        new_entry_data.update({'task_id': data.task_id})
+        new_entry_object['task_id'] = req.task_id
         try:
-            task_data = await us.task.show(id=data.task_id)
+            task_data = await us.task.show(id=req.task_id)
         except ValueError as exc:
             raise HTTPException(status_code=422, detail={
                 'detail': [
@@ -117,9 +123,9 @@ async def entries_create(req: schemas.EntryCreateRequest,
                     }
                 ]
             })
-        new_entry_data.update({'ip_address': new_ip})
+        new_entry_object['ip_address'] = new_ip
     elif mount_type == 'newSwitch':
-        async with nb.get('/api/ipam/prefixes/', params={'contains': data.parent_switch.exploded}) as response:
+        async with nb.get('/api/ipam/prefixes/', params={'contains': req.parent_switch.exploded}) as response:
             answer = await response.json()
             if len(answer['results']) != 1:
                 raise HTTPException(status_code=422, detail={
@@ -170,13 +176,16 @@ async def entries_create(req: schemas.EntryCreateRequest,
                     }
                 ]
             })
-        new_entry_data.update({'parent_switch': data.parent_switch.exploded, 'parent_port': data.parent_port})
-        new_entry_data.update({'ip_address': new_ip})
+        new_entry_object['parent_switch'] = req.parent_switch.exploded
+        new_entry_object['parent_port'] = req.parent_port
+        new_entry_object['ip_address'] = new_ip
+        # new_entry_data.update({'parent_switch': data.parent_switch.exploded, 'parent_port': data.parent_port})
+        # new_entry_data.update({'ip_address': new_ip})
     elif mount_type == 'changeSwitch':
         try:
             device_id = await us.device.get_device_id(object_type='switch',
                                                       data_typer='ip',
-                                                      data_value=data.ip_address.exploded)
+                                                      data_value=req.ip_address.exploded)
         except ValueError as exc:
             raise HTTPException(status_code=422, detail={
                 'detail': [
@@ -214,14 +223,17 @@ async def entries_create(req: schemas.EntryCreateRequest,
                 except ValueError as exc:
                     break
                 parent_switch = neighbour_data[0].host
-                new_entry_data.update({'parent_switch': parent_switch, 'parent_port': parent_port})
-        new_entry_data.update({'ip_address': data.ip_address.exploded})
-
-    resp.update({'status': models.entries.ZTPStatus.WAITING})
-    resp.update(new_entry_data)
+                new_entry_object['parent_switch'] = parent_switch
+                new_entry_object['parent_port'] = parent_port
+                # new_entry_data.update({'parent_switch': parent_switch, 'parent_port': parent_port})
+        new_entry_object['ip_address'] = req.ip_address.exploded
+        # new_entry_data.update({'ip_address': data.ip_address.exploded})
+    new_entry_object['status'] = models.entries.ZTPStatus.WAITING
+    # resp.update({'status': models.entries.ZTPStatus.WAITING})
+    # resp.update(new_entry_data)
 
     try:
-        inventory_id = await us.inventory.get_inventory_id(data_typer='serial_number', data_value=resp['serial_number'])
+        inventory_id = await us.inventory.get_inventory_id(data_typer='serial_number', data_value=new_entry_object['serial_number'])
     except ValueError as exc:
         raise HTTPException(status_code=422, detail={
             'detail': [
@@ -246,8 +258,9 @@ async def entries_create(req: schemas.EntryCreateRequest,
             ]
         })
     model = model[0]
-    resp.update({'model_id': model.id})
-    answer = await crud.entry.create(db, obj_in=resp)
+    new_entry_object['model_id'] = model.id
+    # resp.update({'model_id': model.id})
+    answer = await crud.entry.create(db, obj_in=new_entry_object)
     background_tasks.add_task(add_dhcp, answer, db, kea_db, nb, settings)
     background_tasks.add_task(generate_initial_config, answer, db, nb, tftp, settings)
     return answer

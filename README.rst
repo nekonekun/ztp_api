@@ -4,16 +4,14 @@ ZTP api
 What's inside?
 ----
 
-Two command-line utility:
+Three command-line utilities:
 ~~~~
-ztp_api for launching web-service
+ztp_api for launching HTTP REST API service
+
+ztp_api-rq for launching celery
 
 ztp_api-db for migrations etc
 
-
-Help pages:
-~~~~
-None (at this moment)
 
 HOWTO:
 ----

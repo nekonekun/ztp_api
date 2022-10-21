@@ -1,5 +1,5 @@
-from pydantic import BaseModel
-from typing import Literal, Any
+from pydantic import BaseModel, Field
+from typing import Literal, Any, Optional
 import ipaddress
 import enum
 
@@ -24,10 +24,19 @@ class EntryCreateRequestData(NewHouseData, NewSwitchData, ChangeSwitchData):
 class EntryCreateRequest(BaseModel):
     employee_id: int
     node_id: int
-    serial_number: str
-    mac_address: str
-    mountType: Literal['newHouse', 'newSwitch', 'changeSwitch']
-    data: EntryCreateRequestData
+    serial_number: str = Field(..., alias='serial')
+    mac_address: str = Field(..., alias='mac')
+    mount_type: Literal['newHouse', 'newSwitch', 'changeSwitch'] = Field(..., alias='mountType')
+
+    ip_address: Optional[ipaddress.IPv4Address] = Field(alias='ip')
+
+    parent_switch: Optional[ipaddress.IPv4Address] = Field(alias='parent')
+    parent_port: Optional[int] = Field(alias='port')
+
+    task_id: Optional[int]
+
+    # data: EntryCreateRequestData
+
 
     class Config:
         orm_mode = True

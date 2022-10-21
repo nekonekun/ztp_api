@@ -1,5 +1,5 @@
 import datetime
-from typing import Optional, Any
+from typing import Any
 from ftplib import FTP
 import io
 

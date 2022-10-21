@@ -1,12 +1,12 @@
-fastapi~=0.79.0
+fastapi~=0.79.1
 pydantic~=1.9.1
 PyYAML~=6.0
 uvicorn~=0.18.2
 ConfigArgParse~=1.5.3
 SQLAlchemy~=1.4.39
 alembic~=1.8.1
-anac~=0.1.2
 pyuserside~=0.0.3
 setproctitle~=1.2.3
 setuptools~=60.2.0
 aiohttp~=3.8.1
+Jinja2~=3.1.2

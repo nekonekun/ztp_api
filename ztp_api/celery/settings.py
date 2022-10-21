@@ -2,34 +2,25 @@ import yaml
 import os
 from pydantic import (
     BaseSettings,
-    PostgresDsn,
-    FilePath,
     HttpUrl,
+    IPvAnyAddress
 )
 
 
 def yaml_settings(settings: BaseSettings):
-    with open(os.environ.get('ZTPAPI_CONFIG')) as cfg_file:
+    with open(os.environ.get('ZTPAPIRQ_CONFIG')) as cfg_file:
         result = yaml.safe_load(cfg_file)
     return result
 
 
 class Settings(BaseSettings):
-    CONFIG: FilePath
-    PROJECT_DB: PostgresDsn
-    DHCP_DB: PostgresDsn
-    USERSIDE_URL: HttpUrl
-    USERSIDE_KEY: str
-    NETBOX_URL: HttpUrl
-    NETBOX_TOKEN: str
-    TFTP_SERVER: str
+    TFTP_SERVER: IPvAnyAddress
     TFTP_USERNAME: str
     TFTP_PASSWORD: str
-    TFTP_FOLDER_STRUCTURE: dict[str, str]
     DEVICEAPI_URL: HttpUrl
 
     class Config:
-        env_prefix = 'ZTPAPI_'
+        env_prefix = 'ZTPAPIRQ_'
         env_file = None
         extra = 'ignore'
 

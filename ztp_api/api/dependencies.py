@@ -45,7 +45,7 @@ async def get_netbox_session(settings: Settings = Depends(get_settings)):
     netbox_url = settings.NETBOX_URL
     netbox_token = settings.NETBOX_TOKEN
     auth_header = {'Authorization': f'Token {netbox_token}'}
-    session = aiohttp.ClientSession(base_url=netbox_url, headers=auth_header)
+    session = aiohttp.ClientSession(base_url=netbox_url, headers=auth_header, connector=aiohttp.TCPConnector(verify_ssl=False))
     try:
         yield session
     finally:

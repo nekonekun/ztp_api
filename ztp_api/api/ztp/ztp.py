@@ -15,7 +15,7 @@ async def generate_initial_config(device: Entry, db, nb, tftp, settings):
 
     async with nb.get('/api/ipam/prefixes/', params={'contains': device.ip_address}) as response:
         results = await response.json()
-    prefix = max(results['results'], key=lambda x: int(x['prefix'].split('/')[1]))
+    prefix = max(results['results'], key=lambda x: int(x['prefix'].split('/')[1]))  # maybe use ip_interface.netmask
     async with nb.get('/api/ipam/ip-addresses/', params={'parent': prefix['prefix'], 'tag': 'gw'}) as response:
         results = await response.json()
     gateway_dummy = results['results'][0]['address']
