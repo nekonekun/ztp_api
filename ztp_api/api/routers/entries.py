@@ -45,7 +45,7 @@ async def entries_create(req: schemas.EntryCreateRequest,
             raise HTTPException(status_code=422, detail={
                 'detail': [
                     {
-                        'loc': ['body', 'data', 'task_id'],
+                        'loc': ['body', 'task_id'],
                         'msg': str(exc),
                     }
                 ]
@@ -55,7 +55,7 @@ async def entries_create(req: schemas.EntryCreateRequest,
             raise HTTPException(status_code=422, detail={
                 'detail': [
                     {
-                        'loc': ['body', 'data', 'task_id'],
+                        'loc': ['body', 'task_id'],
                         'msg': 'В задании не указано ТЗ от ШПД',
                     }
                 ]
@@ -66,7 +66,7 @@ async def entries_create(req: schemas.EntryCreateRequest,
             raise HTTPException(status_code=422, detail={
                 'detail': [
                     {
-                        'loc': ['body', 'data', 'task_id'],
+                        'loc': ['body', 'task_id'],
                         'msg': 'В ТЗ от ШПД не указана менеджмент сетка',
                     }
                 ]
@@ -78,7 +78,7 @@ async def entries_create(req: schemas.EntryCreateRequest,
                 raise HTTPException(status_code=422, detail={
                     'detail': [
                         {
-                            'loc': ['body', 'data', 'task_id'],
+                            'loc': ['body', 'task_id'],
                             'msg': 'Указанная в заявке менеджмент сетка не ищется в нетбоксе',
                         }
                     ]
@@ -89,7 +89,7 @@ async def entries_create(req: schemas.EntryCreateRequest,
                 raise HTTPException(status_code=422, detail={
                     'detail': [
                         {
-                            'loc': ['body', 'data', 'task_id'],
+                            'loc': ['body', 'task_id'],
                             'msg': 'К указанной в заявке менеджмент сетке не привязан влан в нетбоксе',
                         }
                     ]
@@ -100,7 +100,7 @@ async def entries_create(req: schemas.EntryCreateRequest,
                 raise HTTPException(status_code=422, detail={
                     'detail': [
                         {
-                            'loc': ['body', 'data', 'task_id'],
+                            'loc': ['body', 'task_id'],
                             'msg': 'Невозможная ошибка: к влану не привязана ни одна сетка',
                         }
                     ]
@@ -118,20 +118,38 @@ async def entries_create(req: schemas.EntryCreateRequest,
             raise HTTPException(status_code=422, detail={
                 'detail': [
                     {
-                        'loc': ['body', 'data', 'task_id'],
+                        'loc': ['body', 'task_id'],
                         'msg': 'Не получилось выбрать айпишник -- нет свободных.',
                     }
                 ]
             })
         new_entry_object['ip_address'] = new_ip
     elif mount_type == 'newSwitch':
+        if not req.parent_switch:
+            raise HTTPException(status_code=422, detail={
+                'detail': [
+                    {
+                        'loc': ['body', 'parent_switch'],
+                        'msg': 'Не указан свич, от которого будет подключен новый.',
+                    }
+                ]
+            })
+        if not req.parent_port:
+            raise HTTPException(status_code=422, detail={
+                'detail': [
+                    {
+                        'loc': ['body', 'parent_switch'],
+                        'msg': 'Не указан порт, от которого будет подключен новый свич.',
+                    }
+                ]
+            })
         async with nb.get('/api/ipam/prefixes/', params={'contains': req.parent_switch.exploded}) as response:
             answer = await response.json()
             if len(answer['results']) != 1:
                 raise HTTPException(status_code=422, detail={
                     'detail': [
                         {
-                            'loc': ['body', 'data', 'parent_switch'],
+                            'loc': ['body', 'parent_switch'],
                             'msg': 'Сетка вышестоящего свича не ищется в нетбоксе',
                         }
                     ]
@@ -142,7 +160,7 @@ async def entries_create(req: schemas.EntryCreateRequest,
                 raise HTTPException(status_code=422, detail={
                     'detail': [
                         {
-                            'loc': ['body', 'data', 'parent_switch'],
+                            'loc': ['body', 'parent_switch'],
                             'msg': 'К сетке вышестоящего свича не привязан влан в нетбоксе',
                         }
                     ]
@@ -153,7 +171,7 @@ async def entries_create(req: schemas.EntryCreateRequest,
                 raise HTTPException(status_code=422, detail={
                     'detail': [
                         {
-                            'loc': ['body', 'data', 'parent_switch'],
+                            'loc': ['body', 'parent_switch'],
                             'msg': 'Невозможная ошибка: к влану не привязана ни одна сетка',
                         }
                     ]
@@ -171,7 +189,7 @@ async def entries_create(req: schemas.EntryCreateRequest,
             raise HTTPException(status_code=422, detail={
                 'detail': [
                     {
-                        'loc': ['body', 'data', 'parent_switch'],
+                        'loc': ['body', 'parent_switch'],
                         'msg': 'Не получилось выбрать айпишник -- нет свободных.',
                     }
                 ]
@@ -190,7 +208,7 @@ async def entries_create(req: schemas.EntryCreateRequest,
             raise HTTPException(status_code=422, detail={
                 'detail': [
                     {
-                        'loc': ['body', 'data', 'ip_address'],
+                        'loc': ['body', 'ip_address'],
                         'msg': str(exc),
                     }
                 ]
@@ -201,7 +219,7 @@ async def entries_create(req: schemas.EntryCreateRequest,
             raise HTTPException(status_code=422, detail={
                 'detail': [
                     {
-                        'loc': ['body', 'data', 'ip_address'],
+                        'loc': ['body', 'ip_address'],
                         'msg': str(exc),
                     }
                 ]
@@ -238,7 +256,7 @@ async def entries_create(req: schemas.EntryCreateRequest,
         raise HTTPException(status_code=422, detail={
             'detail': [
                 {
-                    'loc': ['body', 'data', 'serial_number'],
+                    'loc': ['body', 'serial_number'],
                     'msg': str(exc),
                 }
             ]
@@ -252,7 +270,7 @@ async def entries_create(req: schemas.EntryCreateRequest,
         raise HTTPException(status_code=422, detail={
             'detail': [
                 {
-                    'loc': ['body', 'data', 'serial_number'],
+                    'loc': ['body', 'serial_number'],
                     'msg': f'Модель {model_name} ещё не добавлена в ZTP',
                 }
             ]
