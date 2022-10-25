@@ -22,8 +22,8 @@ class EntryCreateRequestData(NewHouseData, NewSwitchData, ChangeSwitchData):
 
 
 class EntryCreateRequest(BaseModel):
-    employee_id: int
-    node_id: int
+    employee_id: int = Field(..., alias='employeeId')
+    node_id: int = Field(..., alias='nodeId')
     serial_number: str = Field(..., alias='serial')
     mac_address: str = Field(..., alias='mac')
     mount_type: Literal['newHouse', 'newSwitch', 'changeSwitch'] = Field(..., alias='mountType')
