@@ -125,11 +125,11 @@ async def entries_create(req: schemas.EntryCreateRequest,
             })
         new_entry_object['ip_address'] = new_ip
     elif mount_type == 'newSwitch':
-        if not req.parent_switch:
+        if not req.ip_address:
             raise HTTPException(status_code=422, detail={
                 'detail': [
                     {
-                        'loc': ['body', 'parent_switch'],
+                        'loc': ['body', 'ip'],
                         'msg': 'Не указан свич, от которого будет подключен новый.',
                     }
                 ]
@@ -138,18 +138,18 @@ async def entries_create(req: schemas.EntryCreateRequest,
             raise HTTPException(status_code=422, detail={
                 'detail': [
                     {
-                        'loc': ['body', 'parent_switch'],
+                        'loc': ['body', 'port'],
                         'msg': 'Не указан порт, от которого будет подключен новый свич.',
                     }
                 ]
             })
-        async with nb.get('/api/ipam/prefixes/', params={'contains': req.parent_switch.exploded}) as response:
+        async with nb.get('/api/ipam/prefixes/', params={'contains': req.ip_address.exploded}) as response:
             answer = await response.json()
             if len(answer['results']) != 1:
                 raise HTTPException(status_code=422, detail={
                     'detail': [
                         {
-                            'loc': ['body', 'parent_switch'],
+                            'loc': ['body', 'ip'],
                             'msg': 'Сетка вышестоящего свича не ищется в нетбоксе',
                         }
                     ]
@@ -160,7 +160,7 @@ async def entries_create(req: schemas.EntryCreateRequest,
                 raise HTTPException(status_code=422, detail={
                     'detail': [
                         {
-                            'loc': ['body', 'parent_switch'],
+                            'loc': ['body', 'ip'],
                             'msg': 'К сетке вышестоящего свича не привязан влан в нетбоксе',
                         }
                     ]
@@ -171,7 +171,7 @@ async def entries_create(req: schemas.EntryCreateRequest,
                 raise HTTPException(status_code=422, detail={
                     'detail': [
                         {
-                            'loc': ['body', 'parent_switch'],
+                            'loc': ['body', 'ip'],
                             'msg': 'Невозможная ошибка: к влану не привязана ни одна сетка',
                         }
                     ]
@@ -189,12 +189,12 @@ async def entries_create(req: schemas.EntryCreateRequest,
             raise HTTPException(status_code=422, detail={
                 'detail': [
                     {
-                        'loc': ['body', 'parent_switch'],
+                        'loc': ['body', 'ip'],
                         'msg': 'Не получилось выбрать айпишник -- нет свободных.',
                     }
                 ]
             })
-        new_entry_object['parent_switch'] = req.parent_switch.exploded
+        new_entry_object['parent_switch'] = req.ip_address.exploded
         new_entry_object['parent_port'] = req.parent_port
         new_entry_object['ip_address'] = new_ip
         # new_entry_data.update({'parent_switch': data.parent_switch.exploded, 'parent_port': data.parent_port})
