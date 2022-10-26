@@ -33,7 +33,7 @@ class EntryCreateRequest(BaseModel):
     # parent_switch: Optional[ipaddress.IPv4Address] = Field(alias='parent')
     parent_port: Optional[int] = Field(alias='port')
 
-    task_id: Optional[int]
+    task_id: Optional[int] = Field(alias='taskId')
 
     # data: EntryCreateRequestData
 
