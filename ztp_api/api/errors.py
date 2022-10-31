@@ -21,6 +21,6 @@ async def validation_exception_handler(request, exc: RequestValidationError):
         field = error['loc'][-1]
         text = error['msg']
         response.append({'field': field, 'msg': f'В поле {field}' + translate_error(text)})
-    return JSONResponse(status_code=422, content=response)
+    return JSONResponse(status_code=422, content={'detail': response})
 
 
