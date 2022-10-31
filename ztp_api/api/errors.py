@@ -4,9 +4,9 @@ from fastapi.responses import JSONResponse
 
 
 TRANSLATIONS = {
-    'value is not a valid IPv4 address': 'Это не IP-адрес',
-    'unexpected value; permitted: \'newHouse\', \'newSwitch\', \'changeSwitch\'': 'Невероятная ошибка',
-    'value is not a valid integer': 'Это не число',
+    'value is not a valid IPv4 address': ' не IP-адрес',
+    'unexpected value; permitted: \'newHouse\', \'newSwitch\', \'changeSwitch\'': ' невероятная ошибка',
+    'value is not a valid integer': ' не число',
 }
 
 
@@ -20,7 +20,7 @@ async def validation_exception_handler(request, exc: RequestValidationError):
     for error in errors:
         field = error['loc'][-1]
         text = error['msg']
-        response.append({'field': field, 'msg': translate_error(text)})
+        response.append({'field': field, 'msg': f'В поле {field}' + translate_error(text)})
     return JSONResponse(status_code=422, content=response)
 
 

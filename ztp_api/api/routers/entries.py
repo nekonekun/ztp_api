@@ -43,7 +43,7 @@ async def entries_create(req: schemas.EntryCreateRequest,
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=[
                     {
-                        'field': 'task_id',
+                        'field': 'taskId',
                         'msg': 'Не получилось найти такое задание',
                     }
                 ]
@@ -52,7 +52,7 @@ async def entries_create(req: schemas.EntryCreateRequest,
         if not target_field:
             raise HTTPException(status_code=422, detail=[
                     {
-                        'field': 'task_id',
+                        'field': 'taskId',
                         'msg': 'В задании не указано ТЗ от ШПД',
                     }
                 ]
@@ -62,7 +62,7 @@ async def entries_create(req: schemas.EntryCreateRequest,
         if not subnet:
             raise HTTPException(status_code=422, detail=[
                     {
-                        'field': 'task_id',
+                        'field': 'taskId',
                         'msg': 'В ТЗ от ШПД не указана менеджмент сетка',
                     }
                 ]
@@ -73,7 +73,7 @@ async def entries_create(req: schemas.EntryCreateRequest,
             if len(answer['results']) != 1:
                 raise HTTPException(status_code=422, detail=[
                         {
-                            'field': 'task_id',
+                            'field': 'taskId',
                             'msg': 'Указанная в заявке менеджмент сетка не ищется в нетбоксе',
                         }
                     ]
@@ -83,7 +83,7 @@ async def entries_create(req: schemas.EntryCreateRequest,
             if not vlan_info:
                 raise HTTPException(status_code=422, detail=[
                         {
-                            'field': 'task_id',
+                            'field': 'taskId',
                             'msg': 'К указанной в заявке менеджмент сетке не привязан влан в нетбоксе',
                         }
                     ]
@@ -93,7 +93,7 @@ async def entries_create(req: schemas.EntryCreateRequest,
             if not answer.get('results'):
                 raise HTTPException(status_code=422, detail=[
                         {
-                            'field': 'task_id',
+                            'field': 'taskId',
                             'msg': 'Невозможная ошибка: к влану не привязана ни одна сетка',
                         }
                     ]
@@ -110,7 +110,7 @@ async def entries_create(req: schemas.EntryCreateRequest,
         if not new_ip:
             raise HTTPException(status_code=422, detail=[
                     {
-                        'field': 'task_id',
+                        'field': 'taskId',
                         'msg': 'Не получилось выбрать айпишник -- нет свободных.',
                     }
                 ]
