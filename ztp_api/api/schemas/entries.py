@@ -1,7 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import Literal, Any, Optional
 import ipaddress
-import enum
 
 
 class NewHouseData(BaseModel):
@@ -30,13 +29,9 @@ class EntryCreateRequest(BaseModel):
 
     ip_address: Optional[ipaddress.IPv4Address] = Field(alias='ip')
 
-    # parent_switch: Optional[ipaddress.IPv4Address] = Field(alias='parent')
     parent_port: Optional[int] = Field(alias='port')
 
     task_id: Optional[int] = Field(alias='taskId')
-
-    # data: EntryCreateRequestData
-
 
     class Config:
         orm_mode = True

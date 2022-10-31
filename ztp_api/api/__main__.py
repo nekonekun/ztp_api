@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
 
 import uvicorn
 from configargparse import ArgumentParser, ArgumentDefaultsHelpFormatter
@@ -9,11 +10,10 @@ import sys
 from pathlib import Path
 from ztp_api.api.routers.entries import entries_router
 from ztp_api.api.routers.models import models_router
+from ztp_api.api.errors import validation_exception_handler
 
 
 ENV_VAR_PREFIX = 'ZTPAPI_'
-
-
 
 
 parser = ArgumentParser(
@@ -47,7 +47,9 @@ def main():
         uvicorn_params['port'] = args.port
 
     os.environ['ZTPAPI_CONFIG'] = args.config
+
     app = FastAPI(docs_url="/documentation", redoc_url=None, )
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -55,8 +57,11 @@ def main():
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
     app.include_router(entries_router, prefix='/entries', tags=['Entries'])
     app.include_router(models_router, prefix='/models', tags=['Models'])
+
+    app.add_exception_handler(RequestValidationError, validation_exception_handler)
 
     setproctitle(os.path.basename(sys.argv[0]))
     uvicorn.run(app=app, **uvicorn_params)

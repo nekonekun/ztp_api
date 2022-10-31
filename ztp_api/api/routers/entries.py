@@ -1,10 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+
+import ipaddress
+import re
+
 from ztp_api.api import crud, schemas, models
 from ztp_api.api.dependencies import get_db, get_us_api, get_netbox_session, get_kea_db, get_settings, get_tftp_session
 from ztp_api.api.ztp.kea_dhcp import add_dhcp
 from ztp_api.api.ztp.ztp import generate_initial_config
-import re
-import ipaddress
 
 entries_router = APIRouter()
 
@@ -33,78 +35,69 @@ async def entries_create(req: schemas.EntryCreateRequest,
     new_entry_object['mac_address'] = clean_mac
     new_entry_object['employee_id'] = req.employee_id
     new_entry_object['node_id'] = req.node_id
-    # resp['mac_address'] = clean_mac
     mount_type = req.mount_type
-    # data = resp.pop('data')
-    # new_entry_data = {}
     if mount_type == 'newHouse':
         new_entry_object['task_id'] = req.task_id
         try:
             task_data = await us.task.show(id=req.task_id)
         except ValueError as exc:
-            raise HTTPException(status_code=422, detail={
-                'detail': [
+            raise HTTPException(status_code=422, detail=[
                     {
-                        'loc': ['body', 'task_id'],
-                        'msg': str(exc),
+                        'field': 'task_id',
+                        'msg': 'Не получилось найти такое задание',
                     }
                 ]
-            })
+            )
         target_field = list(filter(lambda x: x.id == 266, task_data.additional_data))
         if not target_field:
-            raise HTTPException(status_code=422, detail={
-                'detail': [
+            raise HTTPException(status_code=422, detail=[
                     {
-                        'loc': ['body', 'task_id'],
+                        'field': 'task_id',
                         'msg': 'В задании не указано ТЗ от ШПД',
                     }
                 ]
-            })
+            )
         target_field = target_field[0].value
-        subnet = re.search('mgmt (\d+\.\d+\.\d+\.\d+/\d+)', target_field)
+        subnet = re.search(r'mgmt (\d+\.\d+\.\d+\.\d+/\d+)', target_field)
         if not subnet:
-            raise HTTPException(status_code=422, detail={
-                'detail': [
+            raise HTTPException(status_code=422, detail=[
                     {
-                        'loc': ['body', 'task_id'],
+                        'field': 'task_id',
                         'msg': 'В ТЗ от ШПД не указана менеджмент сетка',
                     }
                 ]
-            })
+            )
         subnet = subnet.group(1)
         async with nb.get('/api/ipam/prefixes/', params={'prefix': subnet}) as response:
             answer = await response.json()
             if len(answer['results']) != 1:
-                raise HTTPException(status_code=422, detail={
-                    'detail': [
+                raise HTTPException(status_code=422, detail=[
                         {
-                            'loc': ['body', 'task_id'],
+                            'field': 'task_id',
                             'msg': 'Указанная в заявке менеджмент сетка не ищется в нетбоксе',
                         }
                     ]
-                })
+                )
             prefix_info = answer['results'][0]
             vlan_info = prefix_info.get('vlan')
             if not vlan_info:
-                raise HTTPException(status_code=422, detail={
-                    'detail': [
+                raise HTTPException(status_code=422, detail=[
                         {
-                            'loc': ['body', 'task_id'],
+                            'field': 'task_id',
                             'msg': 'К указанной в заявке менеджмент сетке не привязан влан в нетбоксе',
                         }
                     ]
-                })
+                )
         async with nb.get('/api/ipam/prefixes/', params={'vlan_id': vlan_info['id']}) as response:
             answer = await response.json()
             if not answer.get('results'):
-                raise HTTPException(status_code=422, detail={
-                    'detail': [
+                raise HTTPException(status_code=422, detail=[
                         {
-                            'loc': ['body', 'task_id'],
+                            'field': 'task_id',
                             'msg': 'Невозможная ошибка: к влану не привязана ни одна сетка',
                         }
                     ]
-                })
+                )
             available_prefix_ids = [prefix['id'] for prefix in answer['results']]
         new_ip = None
         for prefix_id in available_prefix_ids:
@@ -115,67 +108,61 @@ async def entries_create(req: schemas.EntryCreateRequest,
                     new_ip = ipaddress.IPv4Interface(new_ip).ip.exploded
                     break
         if not new_ip:
-            raise HTTPException(status_code=422, detail={
-                'detail': [
+            raise HTTPException(status_code=422, detail=[
                     {
-                        'loc': ['body', 'task_id'],
+                        'field': 'task_id',
                         'msg': 'Не получилось выбрать айпишник -- нет свободных.',
                     }
                 ]
-            })
+            )
         new_entry_object['ip_address'] = new_ip
     elif mount_type == 'newSwitch':
         if not req.ip_address:
-            raise HTTPException(status_code=422, detail={
-                'detail': [
+            raise HTTPException(status_code=422, detail=[
                     {
-                        'loc': ['body', 'ip'],
+                        'field': 'ip',
                         'msg': 'Не указан свич, от которого будет подключен новый.',
                     }
                 ]
-            })
+            )
         if not req.parent_port:
-            raise HTTPException(status_code=422, detail={
-                'detail': [
+            raise HTTPException(status_code=422, detail=[
                     {
-                        'loc': ['body', 'port'],
+                        'field': 'port',
                         'msg': 'Не указан порт, от которого будет подключен новый свич.',
                     }
                 ]
-            })
+            )
         async with nb.get('/api/ipam/prefixes/', params={'contains': req.ip_address.exploded}) as response:
             answer = await response.json()
             if len(answer['results']) != 1:
-                raise HTTPException(status_code=422, detail={
-                    'detail': [
+                raise HTTPException(status_code=422, detail=[
                         {
-                            'loc': ['body', 'ip'],
+                            'field': 'ip',
                             'msg': 'Сетка вышестоящего свича не ищется в нетбоксе',
                         }
                     ]
-                })
+                )
             prefix_info = answer['results'][0]
             vlan_info = prefix_info.get('vlan')
             if not vlan_info:
-                raise HTTPException(status_code=422, detail={
-                    'detail': [
+                raise HTTPException(status_code=422, detail=[
                         {
-                            'loc': ['body', 'ip'],
+                            'field': 'ip',
                             'msg': 'К сетке вышестоящего свича не привязан влан в нетбоксе',
                         }
                     ]
-                })
+                )
         async with nb.get('/api/ipam/prefixes/', params={'vlan_id': vlan_info['id']}) as response:
             answer = await response.json()
             if not answer.get('results'):
-                raise HTTPException(status_code=422, detail={
-                    'detail': [
+                raise HTTPException(status_code=422, detail=[
                         {
-                            'loc': ['body', 'ip'],
+                            'field': 'ip',
                             'msg': 'Невозможная ошибка: к влану не привязана ни одна сетка',
                         }
                     ]
-                })
+                )
             available_prefix_ids = [prefix['id'] for prefix in answer['results']]
         new_ip = None
         for prefix_id in available_prefix_ids:
@@ -186,44 +173,39 @@ async def entries_create(req: schemas.EntryCreateRequest,
                     new_ip = ipaddress.IPv4Interface(new_ip).ip.exploded
                     break
         if not new_ip:
-            raise HTTPException(status_code=422, detail={
-                'detail': [
+            raise HTTPException(status_code=422, detail=[
                     {
-                        'loc': ['body', 'ip'],
+                        'field': 'ip',
                         'msg': 'Не получилось выбрать айпишник -- нет свободных.',
                     }
                 ]
-            })
+            )
         new_entry_object['parent_switch'] = req.ip_address.exploded
         new_entry_object['parent_port'] = req.parent_port
         new_entry_object['ip_address'] = new_ip
-        # new_entry_data.update({'parent_switch': data.parent_switch.exploded, 'parent_port': data.parent_port})
-        # new_entry_data.update({'ip_address': new_ip})
     elif mount_type == 'changeSwitch':
         try:
             device_id = await us.device.get_device_id(object_type='switch',
                                                       data_typer='ip',
                                                       data_value=req.ip_address.exploded)
         except ValueError as exc:
-            raise HTTPException(status_code=422, detail={
-                'detail': [
+            raise HTTPException(status_code=422, detail=[
                     {
-                        'loc': ['body', 'ip_address'],
-                        'msg': str(exc),
+                        'field': 'ip',
+                        'msg': 'Ошибка при поиске свича',
                     }
                 ]
-            })
+            )
         try:
             device_data = await us.device.get_data(object_type='switch', object_id=device_id, is_hide_ifaces_data=1)
         except ValueError as exc:
-            raise HTTPException(status_code=422, detail={
-                'detail': [
+            raise HTTPException(status_code=422, detail=[
                     {
-                        'loc': ['body', 'ip_address'],
-                        'msg': str(exc),
+                        'field': 'ip',
+                        'msg': 'Ошибка при поиске свича',
                     }
                 ]
-            })
+            )
         uplink = device_data[0].uplink_iface
         if len(uplink) == 1:
             for uplink_port in uplink:
@@ -243,41 +225,33 @@ async def entries_create(req: schemas.EntryCreateRequest,
                 parent_switch = neighbour_data[0].host
                 new_entry_object['parent_switch'] = parent_switch
                 new_entry_object['parent_port'] = parent_port
-                # new_entry_data.update({'parent_switch': parent_switch, 'parent_port': parent_port})
         new_entry_object['ip_address'] = req.ip_address.exploded
-        # new_entry_data.update({'ip_address': data.ip_address.exploded})
     new_entry_object['status'] = models.entries.ZTPStatus.WAITING
-    # resp.update({'status': models.entries.ZTPStatus.WAITING})
-    # resp.update(new_entry_data)
-
     try:
         inventory_id = await us.inventory.get_inventory_id(data_typer='serial_number', data_value=new_entry_object['serial_number'])
     except ValueError as exc:
-        raise HTTPException(status_code=422, detail={
-            'detail': [
+        raise HTTPException(status_code=422, detail=[
                 {
-                    'loc': ['body', 'serial_number'],
-                    'msg': str(exc),
+                    'field': 'serial',
+                    'msg': 'Ошибка при поиске свича',
                 }
             ]
-        })
+        )
     inventory_id = inventory_id['id']
     inventory_data = await us.inventory.get_inventory(id=inventory_id)
     model_name = inventory_data['data']['name']
     models_db = await crud.model.get_multi(db=db)
     model = list(filter(lambda x: x.model == model_name, models_db))
     if not model:
-        raise HTTPException(status_code=422, detail={
-            'detail': [
+        raise HTTPException(status_code=422, detail=[
                 {
-                    'loc': ['body', 'serial_number'],
+                    'field': 'serial',
                     'msg': f'Модель {model_name} ещё не добавлена в ZTP',
                 }
             ]
-        })
+        )
     model = model[0]
     new_entry_object['model_id'] = model.id
-    # resp.update({'model_id': model.id})
     answer = await crud.entry.create(db, obj_in=new_entry_object)
     background_tasks.add_task(add_dhcp, answer, db, kea_db, nb, settings)
     background_tasks.add_task(generate_initial_config, answer, db, nb, tftp, settings)
