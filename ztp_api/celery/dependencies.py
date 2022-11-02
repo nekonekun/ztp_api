@@ -19,7 +19,7 @@ def get_deviceapi_session():
 async def get_ftp_session():
     settings = get_settings()
     session = aioftp.Client()
-    await session.connect(settings.TFTP_SERVER)
+    await session.connect(settings.TFTP_SERVER.exploded)
     await session.login(settings.TFTP_USERNAME, settings.TFTP_PASSWORD)
     return session
 
@@ -27,5 +27,4 @@ async def get_ftp_session():
 def get_telegram_bot():
     settings = get_settings()
     bot = Bot(token=settings.TELEGRAM_BOT_TOKEN)
-    chats_to_send = settings.TELEGRAM_CHAT_IDS
     return bot
