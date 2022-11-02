@@ -290,7 +290,9 @@ async def entries_ztp_start(entry_id: int,
     async with nb.get('/api/ipam/prefixes/', params={'contains': entry.ip_address.exploded}) as response:
         answer = await response.json()
     logging.error('NETBOX RESPONSE GOT')
-    prefix_info = answer['results'][0]
+    prefix_list = answer['results']
+    prefix_list.sort(key=lambda x: ipaddress.ip_network(x['prefix']).prefixlen)
+    prefix_info = prefix_list[-1]
     vlan_info = prefix_info.get('vlan')
     vlan_id = vlan_info['vid']
     logging.error('VLAN TAG GOT')
