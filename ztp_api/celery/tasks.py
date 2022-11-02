@@ -164,46 +164,60 @@ def ztp(ip: str,
 async def async_ztp(ip: str,
                     autochange_vlan: bool = False,
                     parent_switch: str = None,
-                    parent_port: str = None,
-                    management_vlan: str = None,
-                    pull_full_config: bool = False,
+                    parent_port: int = None,
+                    management_vlan: int = None,
+                    push_full_config: bool = False,
                     full_config_commands: list[str] = None,
                     full_config_filename: str = None):
     bot = get_telegram_bot()
     message_prefix = '[100.100.0.198] '
+    untagged = None
+
     await send_message(bot, f'Начали', message_prefix)
 
-    # TODO Сменить влан на вышестоящем (optional)
     if autochange_vlan:
         await send_message(bot, 'Выбрано автоперевешивание', message_prefix)
+        await send_message(bot, f'Свич {parent_switch} порт {parent_port}', message_prefix)
         vlans_on_uplink = await get_port_vlan(parent_switch, parent_port)
         untagged = vlans_on_uplink['untagged']
         if untagged:
             await send_message(bot, 'Запомнили антаг вланы: ' + ', '.join(map(str, untagged)), message_prefix)
             for vlan in untagged:
-                # await send_message(bot, f'Сняли влан {vlan}', message_prefix)
                 await modify_port_vlan(parent_switch, parent_port, vlan, 'delete')
             await send_message(bot, 'Сняли антаг вланы', message_prefix)
         await modify_port_vlan(parent_switch, parent_port, management_vlan, 'add', 'untagged')
-        await send_message(bot, 'Навесили управление антагом', message_prefix)
+        await send_message(bot, f'Навесили управление ({management_vlan}) антагом', message_prefix)
 
-    # TODO Дождаться пока начнет пинговаться
     await send_message(bot, 'Ждем пока запингуется', message_prefix)
+    while not (await ping(ip)):
+        await asyncio.sleep(1)
     await send_message(bot, 'Начал пинговаться', message_prefix)
 
-    # TODO Дождаться пока скачает оба файла и перестанет пинговаться
     await send_message(bot, 'Ждем пока скачает оба файла и потеряется', message_prefix)
-    await send_message(bot, 'Дождались', message_prefix)
+    firmware_requested, config_requested = await check_files_requested(ip)
+    available = await ping(ip)
+    while not (firmware_requested and config_requested and not available):
+        await asyncio.sleep(1)
+        firmware_requested, config_requested = await check_files_requested(ip)
+        available = await ping(ip)
+    await send_message(bot, 'Докачал и ребутается', message_prefix)
 
-    # TODO Сменить влан на вышестоящем (optional)
     if autochange_vlan:
         await send_message(bot, 'Выбрано автоперевешивание', message_prefix)
-        await send_message(bot, 'Добавили управление тагом', message_prefix)
-        await send_message(bot, 'Вернули антаги', message_prefix)
+        await send_message(bot, f'Добавили управление {management_vlan} тагом', message_prefix)
+        if untagged:
+            for vlan in untagged:
+                await modify_port_vlan(parent_switch, parent_port, vlan, 'add', 'untagged')
+            await send_message(bot, 'Вернули антаги: ' + ', '.join(untagged), message_prefix)
 
-    # TODO Дождаться пока начнет пинговаться
     await send_message(bot, 'Ждем пока запингуется после перезагрузки', message_prefix)
+    while not (await ping(ip)):
+        await asyncio.sleep(1)
     await send_message(bot, 'Дождались', message_prefix)
 
-    # TODO Залить полный конфиг (optional)
-    await send_message(bot, 'Заливаем полный конфиг', message_prefix)
+    if push_full_config:
+        await send_message(bot, 'Заливаем полный конфиг', message_prefix)
+
+    # TODO запрос в API на удаление celery_id
+    # TODO запрос в API на изменение статуса
+    # TODO изменение документации
