@@ -297,7 +297,7 @@ async def entries_ztp_start(entry_id: int,
     vlan_id = vlan_info['vid']
     logging.error('VLAN TAG GOT')
     task = cel.send_task('ztp_api.celery.tasks.ztp', (entry.ip_address.exploded, entry.autochange_vlans,
-                                                      entry.parent_switch, entry.parent_port, vlan_id))
+                                                      entry.parent_switch.exploded, entry.parent_port, vlan_id))
     logging.error('TASK CREATED')
     answer = await crud.entry.update(db=db, db_obj=entry, obj_in={'celery_id': task.id})
     logging.error('TASK ID INSERTED')

@@ -124,7 +124,7 @@ async def ping(ip) -> bool:
 async def check_files_requested(ip) -> tuple[bool, bool]:
     session = await get_ftp_session()
     logfile = ''
-    async with session.download_stream('/tftp/test.log') as stream:
+    async with session.download_stream('/tftp/tftp.log') as stream:
         async for block in stream.iter_by_block():
             logfile += block.decode('utf-8')
     await session.quit()
