@@ -269,7 +269,7 @@ async def entries_read(entry_id: int, db=Depends(get_db)):
 @entries_router.patch('/{entry_id}', response_model=schemas.Entry)
 async def entries_partial_update(entry_id: int, req: schemas.EntryPatchRequest, db=Depends(get_db), ):
     entry = await crud.entry.get(db=db, id=entry_id)
-    answer = await crud.entry.update(db, entry, req)
+    answer = await crud.entry.update(db=db, db_obj=entry, obj_in=req)
     return answer
 
 
@@ -292,17 +292,16 @@ async def entries_ztp_start(entry_id: int,
     vlan_id = vlan_info['vid']
     task = cel.send_task('ztp_api.celery.tasks.ztp', (entry.ip_address.exploded, entry.autochange_vlans,
                                                       entry.parent_switch, entry.parent_port, vlan_id))
-    answer = await crud.entry.update(db, entry, {'celery_id': task.id})
+    answer = await crud.entry.update(db=db, db_obj=entry, obj_in={'celery_id': task.id})
     return answer
 
 
 @entries_router.post('/{entry_id}/stop_ztp')
 async def entries_ztp_start(entry_id: int,
                             db=Depends(get_db),
-                            cel=Depends(get_celery),
-                            nb=Depends(get_netbox_session)):
+                            cel=Depends(get_celery)):
     entry = await crud.entry.get(db=db, id=entry_id)
     celery_task_id = entry.celery_id
-    cel.control.revoke(celery_task_id)
-    answer = await crud.entry.update(db, entry, {'celery_id': None})
+    cel.control.revoke(celery_task_id, terminate=True)
+    answer = await crud.entry.update(db=db, db_obj=entry, obj_in={'celery_id': None})
     return answer
