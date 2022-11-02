@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 import ipaddress
 import re
 import celery
+import logging
 
 from ztp_api.api import crud, schemas, models
 from ztp_api.api.dependencies import get_db, get_us_api, get_netbox_session, get_kea_db, get_settings, \
@@ -28,6 +29,7 @@ async def entries_create(req: schemas.EntryCreateRequest,
                          nb=Depends(get_netbox_session),
                          tftp=Depends(get_tftp_session),
                          settings=Depends(get_settings)):
+    logging.error('STARTED')
     # resp = dict(req.copy())
     new_entry_object = {}
     dirty_mac = req.mac_address
@@ -239,11 +241,13 @@ async def entries_create(req: schemas.EntryCreateRequest,
                 }
             ]
         )
+    logging.error('POST')
     inventory_id = inventory_id['id']
     inventory_data = await us.inventory.get_inventory(id=inventory_id)
     model_name = inventory_data['data']['name']
     models_db = await crud.model.get_multi(db=db)
     model = list(filter(lambda x: x.model == model_name, models_db))
+    logging.error('MODEL')
     if not model:
         raise HTTPException(status_code=422, detail=[
                 {
@@ -255,6 +259,7 @@ async def entries_create(req: schemas.EntryCreateRequest,
     model = model[0]
     new_entry_object['model_id'] = model.id
     answer = await crud.entry.create(db, obj_in=new_entry_object)
+    logging.error('ANSWER')
     background_tasks.add_task(add_dhcp, answer, kea_db, nb, settings, model.firmware)
     background_tasks.add_task(generate_initial_config, answer, nb, tftp, settings, model.default_initial_config, model.configuration_prefix, model.portcount)
     return answer
