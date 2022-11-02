@@ -170,7 +170,7 @@ async def async_ztp(ip: str,
                     full_config_commands: list[str] = None,
                     full_config_filename: str = None):
     bot = get_telegram_bot()
-    message_prefix = '[100.100.0.198] '
+    message_prefix = f'[{ip}] '
     untagged = None
 
     await send_message(bot, f'Начали', message_prefix)
