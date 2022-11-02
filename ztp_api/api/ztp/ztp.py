@@ -5,7 +5,7 @@ from sqlalchemy.future import select
 from jinja2 import Template
 
 
-async def generate_initial_config(device: Entry, db, nb, tftp, settings):
+async def generate_initial_config(device: Entry, nb, tftp, settings, initial_config_filename, configuration_prefix, portcount):
     stmt = select(Model).where(Model.id == device.model_id)
     response = await db.execute(stmt)
     device_model: Model = response.scalars().one()

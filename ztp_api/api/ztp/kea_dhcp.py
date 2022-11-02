@@ -30,11 +30,7 @@ def generate_option_125(firmware_filename: str):
     return dlink_id + suboption_length + suboption_code + filename_length + hex_filename
 
 
-async def add_dhcp(device: Entry, db, kea_db, nb, settings):
-    stmt = select(Model).where(Model.id == device.model_id)
-    response = await db.execute(stmt)
-    device_model = response.scalars().one()
-
+async def add_dhcp(device: Entry, kea_db, nb, settings, firmware_filename):
     values = {
         'dhcp_identifier': hexstr_to_bytea(device.mac_address),
         'dhcp_identifier_type': 0,
@@ -112,7 +108,7 @@ async def add_dhcp(device: Entry, db, kea_db, nb, settings):
     new_option = DHCPOptions(**values)
     kea_db.add(new_option)
 
-    filename = settings.TFTP_FOLDER_STRUCTURE['firmwares'] + device_model.firmware
+    filename = settings.TFTP_FOLDER_STRUCTURE['firmwares'] + firmware_filename
     values = {
         'code': 125,
         'value': hexstr_to_bytea(generate_option_125(filename)),

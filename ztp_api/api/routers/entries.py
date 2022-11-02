@@ -255,8 +255,8 @@ async def entries_create(req: schemas.EntryCreateRequest,
     model = model[0]
     new_entry_object['model_id'] = model.id
     answer = await crud.entry.create(db, obj_in=new_entry_object)
-    background_tasks.add_task(add_dhcp, answer, db, kea_db, nb, settings)
-    background_tasks.add_task(generate_initial_config, answer, db, nb, tftp, settings)
+    background_tasks.add_task(add_dhcp, answer, kea_db, nb, settings, model.firmware)
+    background_tasks.add_task(generate_initial_config, answer, nb, tftp, settings, model.default_initial_config, model.configuration_prefix, model.portcount)
     return answer
 
 
