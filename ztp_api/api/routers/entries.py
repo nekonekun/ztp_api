@@ -280,13 +280,15 @@ async def entries_delete(entry_id: int, db=Depends(get_db)):
 @entries_router.post('/{entry_id}/start_ztp')
 async def entries_ztp_start(entry_id: int,
                             db=Depends(get_db),
-                            # cel: celery.Celery = Depends(get_celery),
+                            cel=Depends(get_celery),
                             nb=Depends(get_netbox_session)):
     entry = await crud.entry.get(db=db, id=entry_id)
     async with nb.get('/api/ipam/prefixes/', params={'contains': entry.ip_address.exploded}) as response:
         answer = await response.json()
     prefix_info = answer['results'][0]
     vlan_info = prefix_info.get('vlan')
-    return vlan_info
-    # cel.send_task('ztp_api.celery.tasks.ztp', (entry.ip_address.exploded, entry.autochange_vlans,
-    #                                            entry.parent_switch, entry.parent_port, management_vlan))
+    vlan_id = vlan_info['vid']
+    # return vlan_info
+    task = cel.send_task('ztp_api.celery.tasks.ztp', (entry.ip_address.exploded, entry.autochange_vlans,
+                                                      entry.parent_switch, entry.parent_port, vlan_id))
+    return {'celery_id': task.id}

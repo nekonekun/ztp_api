@@ -69,4 +69,7 @@ def get_tftp_session(settings: Settings = Depends(get_settings)):
 @lru_cache()
 def get_celery(settings: Settings = Depends(get_settings)):
     cel = celery.Celery(backend=settings.CELERY_BACKEND, broker=settings.CELERY_BROKER)
-    return cel
+    try:
+        yield cel
+    finally:
+        cel.close()
