@@ -5,6 +5,7 @@ from pydantic import (
     PostgresDsn,
     FilePath,
     HttpUrl,
+    RedisDsn
 )
 
 
@@ -27,6 +28,8 @@ class Settings(BaseSettings):
     TFTP_PASSWORD: str
     TFTP_FOLDER_STRUCTURE: dict[str, str]
     DEVICEAPI_URL: HttpUrl
+    CELERY_BROKER: RedisDsn
+    CELERY_BACKEND: RedisDsn
 
     class Config:
         env_prefix = 'ZTPAPI_'

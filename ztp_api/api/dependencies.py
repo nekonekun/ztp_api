@@ -1,3 +1,5 @@
+import celery
+
 from ztp_api.api.db.session import get_async_session
 from pyuserside.api.asynchronous import UsersideAPI
 import aiohttp
@@ -62,3 +64,9 @@ def get_tftp_session(settings: Settings = Depends(get_settings)):
         yield ftp_session
     finally:
         ftp_session.finish()
+
+
+@lru_cache()
+def get_celery(settings: Settings = Depends(get_settings)) -> celery.Celery:
+    cel = celery.Celery(backend=settings.CELERY_BACKEND, broker=settings.CELERY_BROKER)
+    return cel

@@ -2,9 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 
 import ipaddress
 import re
+import celery
 
 from ztp_api.api import crud, schemas, models
-from ztp_api.api.dependencies import get_db, get_us_api, get_netbox_session, get_kea_db, get_settings, get_tftp_session
+from ztp_api.api.dependencies import get_db, get_us_api, get_netbox_session, get_kea_db, get_settings, \
+    get_tftp_session, get_celery
 from ztp_api.api.ztp.kea_dhcp import add_dhcp
 from ztp_api.api.ztp.ztp import generate_initial_config
 
@@ -273,3 +275,18 @@ async def entries_partial_update(req: schemas.EntryPatchRequest):
 async def entries_delete(entry_id: int, db=Depends(get_db)):
     answer = await crud.entry.remove(db, id=entry_id)
     return answer
+
+
+@entries_router.post('/{entry_id}/start_ztp')
+async def entries_ztp_start(entry_id: int,
+                            db=Depends(get_db),
+                            cel: celery.Celery = Depends(get_celery),
+                            nb=Depends(get_netbox_session)):
+    entry = await crud.entry.get(db=db, id=entry_id)
+    async with nb.get('/api/ipam/prefixes/', params={'contains': entry.ip_address.exploded}) as response:
+        answer = await response.json()
+    prefix_info = answer['results'][0]
+    vlan_info = prefix_info.get('vlan')
+    return vlan_info
+    # cel.send_task('ztp_api.celery.tasks.ztp', (entry.ip_address.exploded, entry.autochange_vlans,
+    #                                            entry.parent_switch, entry.parent_port, management_vlan))
