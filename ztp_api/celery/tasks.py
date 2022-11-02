@@ -46,7 +46,7 @@ async def get_vlan_table(ip):
         for entry in result_all_ports['response']
     }
     tagged_ports = {
-        int(vlan_id): [port for port in portlist if port not in untagged_ports[vlan_id]]
+        int(vlan_id): [port for port in portlist if port not in untagged_ports[int(vlan_id)]]
         for vlan_id, portlist in tagged_ports.items()
     }
 
