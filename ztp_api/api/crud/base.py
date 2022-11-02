@@ -23,7 +23,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         return target_obj
 
     async def get_multi(
-        self, db: AsyncSession, *, skip: int = 0, limit: int = 100
+        self, db: AsyncSession, *, skip: int = 0, limit: int = 100, **kwargs
     ) -> List[ModelType]:
         statement = select(self.model).offset(skip).limit(limit)
         response = await db.execute(statement)
