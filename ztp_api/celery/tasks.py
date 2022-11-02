@@ -2,6 +2,7 @@ from celery import current_app
 from aiogram import Bot
 import re
 import asyncio
+from typing import Literal
 from ztp_api.celery.dependencies import get_deviceapi_session, get_ftp_session, get_telegram_bot, get_settings
 
 
@@ -17,11 +18,11 @@ def portlist_to_hex(portlist: list[int], hexlen: int) -> str:
     return hex(int(''.join(resultlist), 2))[2:].zfill(hexlen)
 
 
-async def send_message(bot: Bot, message: str):
+async def send_message(bot: Bot, message: str, prefix: str = ''):
     settings = get_settings()
     chat_ids = settings.TELEGRAM_CHAT_IDS
     for chat_id in chat_ids:
-        await bot.send_message(chat_id=chat_id, text=message)
+        await bot.send_message(chat_id=chat_id, text=prefix+message)
 
 
 async def get_vlan_table(ip):
@@ -62,7 +63,11 @@ async def get_port_vlan(ip, port):
     return result
 
 
-async def modify_port_vlan(ip, port, vlan, action, mode=None) -> None:
+async def modify_port_vlan(ip,
+                           port,
+                           vlan,
+                           action: Literal['add', 'delete'],
+                           mode: Literal['tagged', 'untagged'] = None) -> None:
     vlan_table = await get_vlan_table(ip)
     tagged = vlan_table['tagged'][vlan]
     untagged = vlan_table['untagged'][vlan]
@@ -165,32 +170,40 @@ async def async_ztp(ip: str,
                     full_config_commands: list[str] = None,
                     full_config_filename: str = None):
     bot = get_telegram_bot()
-    await send_message(bot, 'Началось')
+    message_prefix = '[100.100.0.198] '
+    await send_message(bot, f'Начали', message_prefix)
 
     # TODO Сменить влан на вышестоящем (optional)
     if autochange_vlan:
-        await send_message(bot, 'Выбрано автоперевешивание')
-        await send_message(bot, 'Запомнили антаг вланы')
-        await send_message(bot, 'Сняли антаг вланы')
-        await send_message(bot, 'Навесили управление антагом')
+        await send_message(bot, 'Выбрано автоперевешивание', message_prefix)
+        vlans_on_uplink = await get_port_vlan(parent_switch, parent_port)
+        untagged = vlans_on_uplink['untagged']
+        if untagged:
+            await send_message(bot, 'Запомнили антаг вланы: ' + ', '.join(map(str, untagged)), message_prefix)
+            for vlan in untagged:
+                await send_message(bot, f'Сняли влан {vlan}', message_prefix)
+                # await modify_port_vlan(parent_switch, parent_port, vlan, 'delete')
+            await send_message(bot, 'Сняли антаг вланы', message_prefix)
+        # await modify_port_vlan(parent_switch, parent_port, management_vlan, 'add', 'untagged')
+        await send_message(bot, 'Навесили управление антагом', message_prefix)
 
     # TODO Дождаться пока начнет пинговаться
-    await send_message(bot, 'Ждем пока запингуется')
-    await send_message(bot, 'Начал пинговаться')
+    await send_message(bot, 'Ждем пока запингуется', message_prefix)
+    await send_message(bot, 'Начал пинговаться', message_prefix)
 
     # TODO Дождаться пока скачает оба файла и перестанет пинговаться
-    await send_message(bot, 'Ждем пока скачает оба файла и потеряется')
-    await send_message(bot, 'Дождались')
+    await send_message(bot, 'Ждем пока скачает оба файла и потеряется', message_prefix)
+    await send_message(bot, 'Дождались', message_prefix)
 
     # TODO Сменить влан на вышестоящем (optional)
     if autochange_vlan:
-        await send_message(bot, 'Выбрано автоперевешивание')
-        await send_message(bot, 'Добавили управление тагом')
-        await send_message(bot, 'Вернули антаги')
+        await send_message(bot, 'Выбрано автоперевешивание', message_prefix)
+        await send_message(bot, 'Добавили управление тагом', message_prefix)
+        await send_message(bot, 'Вернули антаги', message_prefix)
 
     # TODO Дождаться пока начнет пинговаться
-    await send_message(bot, 'Ждем пока запингуется после перезагрузки')
-    await send_message(bot, 'Дождались')
+    await send_message(bot, 'Ждем пока запингуется после перезагрузки', message_prefix)
+    await send_message(bot, 'Дождались', message_prefix)
 
     # TODO Залить полный конфиг (optional)
-    await send_message(bot, 'Заливаем полный конфиг')
+    await send_message(bot, 'Заливаем полный конфиг', message_prefix)
