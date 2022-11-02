@@ -181,10 +181,10 @@ async def async_ztp(ip: str,
         if untagged:
             await send_message(bot, 'Запомнили антаг вланы: ' + ', '.join(map(str, untagged)), message_prefix)
             for vlan in untagged:
-                await send_message(bot, f'Сняли влан {vlan}', message_prefix)
-                # await modify_port_vlan(parent_switch, parent_port, vlan, 'delete')
+                # await send_message(bot, f'Сняли влан {vlan}', message_prefix)
+                await modify_port_vlan(parent_switch, parent_port, vlan, 'delete')
             await send_message(bot, 'Сняли антаг вланы', message_prefix)
-        # await modify_port_vlan(parent_switch, parent_port, management_vlan, 'add', 'untagged')
+        await modify_port_vlan(parent_switch, parent_port, management_vlan, 'add', 'untagged')
         await send_message(bot, 'Навесили управление антагом', message_prefix)
 
     # TODO Дождаться пока начнет пинговаться
