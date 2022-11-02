@@ -84,7 +84,8 @@ async def add_dhcp(device: Entry, kea_db, nb, settings, firmware_filename):
     new_option = DHCPOptions(**values)
     kea_db.add(new_option)
 
-    filename = settings.TFTP_FOLDER_STRUCTURE['configs_initial'] + device.ip_address + '.cfg'
+    # filename = settings.TFTP_FOLDER_STRUCTURE['configs_initial'] + device.ip_address + '.cfg'
+    filename = 'configs/initial/' + device.ip_address + '.cfg'
     values = {
         'code': 67,
         'value': bytes(filename, 'utf-8'),
@@ -108,7 +109,8 @@ async def add_dhcp(device: Entry, kea_db, nb, settings, firmware_filename):
     new_option = DHCPOptions(**values)
     kea_db.add(new_option)
 
-    filename = settings.TFTP_FOLDER_STRUCTURE['firmwares'] + firmware_filename
+    # filename = settings.TFTP_FOLDER_STRUCTURE['firmwares'] + firmware_filename
+    filename = 'firmwares/' + firmware_filename
     values = {
         'code': 125,
         'value': hexstr_to_bytea(generate_option_125(filename)),
