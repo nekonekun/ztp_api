@@ -1,6 +1,7 @@
 from celery import current_app
 from aiogram import Bot
 import re
+import asyncio
 from ztp_api.celery.dependencies import get_deviceapi_session, get_ftp_session, get_telegram_bot, get_settings
 
 
@@ -144,14 +145,25 @@ async def check_files_requested(ip) -> tuple[bool, bool]:
 
 
 @current_app.task
-async def ztp(ip: str,
-              autochange_vlan: bool = False,
-              parent_switch: str = None,
-              parent_port: str = None,
-              management_vlan: str = None,
-              pull_full_config: bool = False,
-              full_config_commands: list[str] = None,
-              full_config_filename: str = None):
+def ztp(ip: str,
+        autochange_vlan: bool = False,
+        parent_switch: str = None,
+        parent_port: str = None,
+        management_vlan: str = None,
+        pull_full_config: bool = False,
+        full_config_commands: list[str] = None,
+        full_config_filename: str = None):
+    asyncio.run(async_ztp(ip, autochange_vlan, parent_switch, parent_port, management_vlan, pull_full_config, full_config_commands, full_config_filename))
+
+
+async def async_ztp(ip: str,
+                    autochange_vlan: bool = False,
+                    parent_switch: str = None,
+                    parent_port: str = None,
+                    management_vlan: str = None,
+                    pull_full_config: bool = False,
+                    full_config_commands: list[str] = None,
+                    full_config_filename: str = None):
     bot = get_telegram_bot()
     await send_message(bot, 'Началось')
 
