@@ -280,7 +280,7 @@ async def entries_delete(entry_id: int, db=Depends(get_db)):
 @entries_router.post('/{entry_id}/start_ztp')
 async def entries_ztp_start(entry_id: int,
                             db=Depends(get_db),
-                            cel: celery.Celery = Depends(get_celery),
+                            # cel: celery.Celery = Depends(get_celery),
                             nb=Depends(get_netbox_session)):
     entry = await crud.entry.get(db=db, id=entry_id)
     async with nb.get('/api/ipam/prefixes/', params={'contains': entry.ip_address.exploded}) as response:
