@@ -1,6 +1,7 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Enum
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Enum, DateTime
 from sqlalchemy.dialects.postgresql import INET, JSONB, MACADDR
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 import enum
 from ztp_api.api.db.base import Base
 from ztp_api.api.models.models import Model
@@ -16,6 +17,9 @@ class ZTPStatus(enum.Enum):
 class Entry(Base):
     __tablename__ = 'entries'
     id = Column('id', Integer, primary_key=True, nullable=False)
+    created_at = Column('created_at', DateTime, server_default=func.now())
+    started_at = Column('started_at', DateTime, nullable=True)
+    finished_at = Column('finished_at', DateTime, nullable=True)
     status = Column('status', Enum(ZTPStatus, name='ztp_status'))
     celery_id = Column('celery_id', String, nullable=True)
     employee_id = Column('employee_id', Integer, nullable=False)

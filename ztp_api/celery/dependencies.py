@@ -1,5 +1,6 @@
 import aiohttp
 import aioftp
+from aiogram import Bot
 from ztp_api.celery.settings import Settings
 from functools import lru_cache
 
@@ -21,3 +22,10 @@ async def get_ftp_session():
     await session.connect(settings.TFTP_SERVER)
     await session.login(settings.TFTP_USERNAME, settings.TFTP_PASSWORD)
     return session
+
+
+def get_telegram_bot():
+    settings = get_settings()
+    bot = Bot(token=settings.TELEGRAM_BOT_TOKEN)
+    chats_to_send = settings.TELEGRAM_CHAT_IDS
+    return bot

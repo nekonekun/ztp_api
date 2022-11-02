@@ -1,6 +1,7 @@
 from celery import current_app
+from aiogram import Bot
 import re
-from ztp_api.celery.dependencies import get_deviceapi_session, get_ftp_session
+from ztp_api.celery.dependencies import get_deviceapi_session, get_ftp_session, get_telegram_bot, get_settings
 
 
 def hex_to_portlist(hexstring: str) -> list[int]:
@@ -13,6 +14,13 @@ def hex_to_portlist(hexstring: str) -> list[int]:
 def portlist_to_hex(portlist: list[int], hexlen: int) -> str:
     resultlist = ['1' if i in portlist else '0' for i in range(1, hexlen * 4 + 1)]
     return hex(int(''.join(resultlist), 2))[2:].zfill(hexlen)
+
+
+async def send_message(bot: Bot, message: str):
+    settings = get_settings()
+    chat_ids = settings.TELEGRAM_CHAT_IDS
+    for chat_id in chat_ids:
+        await bot.send_message(chat_id=chat_id, text=message)
 
 
 async def get_vlan_table(ip):
@@ -144,10 +152,33 @@ async def ztp(ip: str,
               pull_full_config: bool = False,
               full_config_commands: list[str] = None,
               full_config_filename: str = None):
+    bot = get_telegram_bot()
+    await send_message(bot, 'Началось')
+
     # TODO Сменить влан на вышестоящем (optional)
+    if autochange_vlan:
+        await send_message(bot, 'Выбрано автоперевешивание')
+        await send_message(bot, 'Запомнили антаг вланы')
+        await send_message(bot, 'Сняли антаг вланы')
+        await send_message(bot, 'Навесили управление антагом')
+
     # TODO Дождаться пока начнет пинговаться
+    await send_message(bot, 'Ждем пока запингуется')
+    await send_message(bot, 'Начал пинговаться')
+
     # TODO Дождаться пока скачает оба файла и перестанет пинговаться
+    await send_message(bot, 'Ждем пока скачает оба файла и потеряется')
+    await send_message(bot, 'Дождались')
+
     # TODO Сменить влан на вышестоящем (optional)
+    if autochange_vlan:
+        await send_message(bot, 'Выбрано автоперевешивание')
+        await send_message(bot, 'Добавили управление тагом')
+        await send_message(bot, 'Вернули антаги')
+
     # TODO Дождаться пока начнет пинговаться
+    await send_message(bot, 'Ждем пока запингуется после перезагрузки')
+    await send_message(bot, 'Дождались')
+
     # TODO Залить полный конфиг (optional)
-    pass
+    await send_message(bot, 'Заливаем полный конфиг')

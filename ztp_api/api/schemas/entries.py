@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import Literal, Any, Optional
 import ipaddress
-
+import datetime
 
 class NewHouseData(BaseModel):
     task_id: int = None
@@ -50,6 +50,9 @@ class EntryPatchRequest(BaseModel):
 
 class Entry(BaseModel):
     id: int
+    created_at: datetime.datetime
+    started_at: datetime.datetime = None
+    finished_at: datetime.datetime = None
     status: Any = None
     celery_id: str = None
     employee_id: int

@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     TFTP_USERNAME: str
     TFTP_PASSWORD: str
     DEVICEAPI_URL: HttpUrl
+    TELEGRAM_BOT_TOKEN: str
+    TELEGRAM_CHAT_IDS: list[int]
 
     class Config:
         env_prefix = 'ZTPAPIRQ_'

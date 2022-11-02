@@ -30,4 +30,4 @@ def main():
 
     app = celery.Celery(include=['ztp_api.celery.tasks'], broker=args.broker, backend=args.result)
 
-    app.worker_main(argv=['worker', '--loglevel=info'])
+    app.worker_main(argv=['worker', '--loglevel=info',  '-E'])
