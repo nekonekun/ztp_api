@@ -38,3 +38,4 @@ class Entry(Base):
     modified_port_settings = Column('modified_port_settings', JSONB, nullable=True)
     vlan_settings = Column('vlan_settings', JSONB, nullable=True)
     modified_vlan_settings = Column('modified_vlan_settings', JSONB, nullable=True)
+    __mapper_args__ = {"eager_defaults": True}
