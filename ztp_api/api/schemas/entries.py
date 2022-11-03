@@ -41,10 +41,10 @@ class EntryPatchRequest(BaseModel):
     started_at: datetime.datetime = None
     finished_at: datetime.datetime = None
     status: Any = None
-    employee_id: int
-    node_id: int
-    mac_address: str
-    ip_address: ipaddress.IPv4Address
+    employee_id: int = None
+    node_id: int = None
+    mac_address: str = None
+    ip_address: ipaddress.IPv4Address = None
     task_id: int = None
     parent_switch: ipaddress.IPv4Address = None
     parent_port: int = None
