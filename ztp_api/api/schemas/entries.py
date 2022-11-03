@@ -38,11 +38,22 @@ class EntryCreateRequest(BaseModel):
 
 
 class EntryPatchRequest(BaseModel):
-    employee_id: int = None
-    node_id: int = None
-    serial_number: str = None
-    mac_address: str = None
-    ip_address: ipaddress.IPv4Address = None
+    started_at: datetime.datetime = None
+    finished_at: datetime.datetime = None
+    status: Any = None
+    employee_id: int
+    node_id: int
+    mac_address: str
+    ip_address: ipaddress.IPv4Address
+    task_id: int = None
+    parent_switch: ipaddress.IPv4Address = None
+    parent_port: int = None
+    autochange_vlans: bool = False
+    original_port_settings: dict = None
+    port_movements: dict = None
+    modified_port_settings: dict = None
+    vlan_settings: dict = None
+    modified_vlan_settings: dict = None
 
     class Config:
         orm_mode = True

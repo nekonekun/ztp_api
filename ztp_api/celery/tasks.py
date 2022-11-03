@@ -204,11 +204,12 @@ async def async_ztp(ip: str,
 
     if autochange_vlan:
         await send_message(bot, 'Выбрано автоперевешивание', message_prefix)
+        await modify_port_vlan(parent_switch, parent_port, management_vlan, 'add', 'tagged')
         await send_message(bot, f'Добавили управление {management_vlan} тагом', message_prefix)
         if untagged:
             for vlan in untagged:
                 await modify_port_vlan(parent_switch, parent_port, vlan, 'add', 'untagged')
-            await send_message(bot, 'Вернули антаги: ' + ', '.join(untagged), message_prefix)
+            await send_message(bot, 'Вернули антаги: ' + ', '.join(map(str, untagged)), message_prefix)
 
     await send_message(bot, 'Ждем пока запингуется после перезагрузки', message_prefix)
     while not (await ping(ip)):
