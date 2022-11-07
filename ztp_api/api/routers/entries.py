@@ -7,7 +7,7 @@ import logging
 
 from ztp_api.api import crud, schemas, models
 from ztp_api.api.dependencies import get_db, get_us_api, get_netbox_session, get_kea_db, get_settings, \
-    get_tftp_session, get_celery
+    get_tftp_session, get_celery, get_deviceapi_session
 from ztp_api.api.ztp.kea_dhcp import add_dhcp
 from ztp_api.api.ztp.ztp import generate_initial_config
 
@@ -254,6 +254,13 @@ async def entries_create(req: schemas.EntryCreateRequest,
         )
     model = model[0]
     new_entry_object['model_id'] = model.id
+    empty_port_settings = {portnum: {'description': '', 'tagged': [], 'untagged': []}
+                           for portnum in range(1, model.portcount+1)}
+    new_entry_object['vlan_settings'] = {}
+    new_entry_object['modified_vlan_settings'] = {}
+    new_entry_object['original_port_settings'] = empty_port_settings
+    new_entry_object['port_movements'] = {}
+    new_entry_object['modified_port_settings'] = empty_port_settings
     answer = await crud.entry.create(db, obj_in=new_entry_object)
     background_tasks.add_task(add_dhcp, answer, kea_db, nb, settings, model.firmware)
     background_tasks.add_task(generate_initial_config, answer, nb, tftp, settings, model.default_initial_config, model.configuration_prefix, model.portcount)
@@ -305,11 +312,94 @@ async def entries_ztp_start(entry_id: int,
 
 
 @entries_router.post('/{entry_id}/stop_ztp')
-async def entries_ztp_start(entry_id: int,
+async def entries_ztp_stop(entry_id: int,
                             db=Depends(get_db),
                             cel=Depends(get_celery)):
     entry = await crud.entry.get(db=db, id=entry_id)
     celery_task_id = entry.celery_id
     cel.control.revoke(celery_task_id, terminate=True)
     answer = await crud.entry.update(db=db, db_obj=entry, obj_in={'celery_id': None})
+    return answer
+
+
+@entries_router.post('/{entry_id}/collect_settings')
+async def entries_collect_settings(entry_id: int, db=Depends(get_db), da=Depends(get_deviceapi_session())):
+    def hex_to_portlist(hexstring: str) -> list[int]:
+        return [index
+                for index, value
+                in enumerate(''.join([
+                bin(int(char, 16))[2:].zfill(4)
+                for char in hexstring
+            ]), 1)
+                if value == '1']
+    entry = await crud.entry.get(db=db, id=entry_id)
+    port_schema = entry.original_port_settings
+
+    async with da:
+        async with da.get(
+                '/snmp/v2/walk',
+                params={'ip': '172.22.24.25',
+                        'oid': '1.3.6.1.2.1.31.1.1.1.18'}
+        ) as response:
+            descriptions = (await response.json())['response']
+
+        async with da.get(
+                '/snmp/v2/walk',
+                params={'ip': '172.22.24.25',
+                        'oid': '1.3.6.1.2.1.17.7.1.4.3.1.1'}
+        ) as response:
+            vlan_names = await response.json()
+
+        async with da.get(
+                '/snmp/v2/walk',
+                params={'ip': '172.22.24.25',
+                        'oid': '1.3.6.1.2.1.17.7.1.4.3.1.2'}
+        ) as response:
+            all_ports = await response.json()
+
+        async with da.get(
+                '/snmp/v2/walk',
+                params={'ip': '172.22.24.25',
+                        'oid': '1.3.6.1.2.1.17.7.1.4.3.1.4'}
+        ) as response:
+            untagged_ports = await response.json()
+
+    untagged_ports = {
+        int(entry['oid'].split('.')[-1]): hex_to_portlist(entry['value'][2:])
+        for entry in untagged_ports['response']
+    }
+
+    tagged_ports = {
+        int(entry['oid'].split('.')[-1]): hex_to_portlist(entry['value'][2:])
+        for entry in all_ports['response']
+    }
+    tagged_ports = {
+        vlan_id: [port for port in portlist if port not in untagged_ports[vlan_id]]
+        for vlan_id, portlist in tagged_ports.items()
+    }
+
+    vlan_schema = {
+        int(entry['oid'].split('.')[-1]): entry['value']
+        for entry in vlan_names['response']
+    }
+
+    current_port = 0
+
+    for response in descriptions:
+        if int(response['oid'].split('.')[-1]) - current_port != 1:
+            break
+        current_port += 1
+        description = response['value']
+        port_schema[current_port] = {'description': '', 'tagged': [], 'untagged': []}
+        port_schema[current_port]['description'] = description
+        port_schema[current_port]['tagged'] = list(filter(lambda x: current_port in untagged_ports[x], untagged_ports.keys()))
+        port_schema[current_port]['untagged'] = list(filter(lambda x: current_port in tagged_ports[x], tagged_ports.keys()))
+
+    answer = await crud.entry.update(db=db, db_obj=entry, obj_in={
+        'original_port_settings': port_schema,
+        'port_movements': {},
+        'modified_port_settings': port_schema,
+        'vlan_settings': vlan_schema,
+        'modified_vlan_settings': vlan_schema,
+    })
     return answer

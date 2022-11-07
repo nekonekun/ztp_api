@@ -3,13 +3,11 @@ import celery
 from ztp_api.api.db.session import get_async_session
 from pyuserside.api.asynchronous import UsersideAPI
 import aiohttp
-from functools import lru_cache
 from ztp_api.api.settings import Settings
 from fastapi import Depends
 from ztp_api.api.services.tftp import TftpWrapper
 
 
-# @lru_cache()
 def get_settings():
     return Settings()
 
@@ -66,10 +64,18 @@ def get_tftp_session(settings: Settings = Depends(get_settings)):
         ftp_session.finish()
 
 
-# @lru_cache()
 def get_celery(settings=Depends(get_settings)):
     cel = celery.Celery(backend=settings.CELERY_BACKEND, broker=settings.CELERY_BROKER)
     try:
         yield cel
     finally:
         cel.close()
+
+
+async def get_deviceapi_session(settings: Settings = Depends(get_settings)):
+    deviceapi_url = settings.DEVICEAPI_URL
+    session = aiohttp.ClientSession(base_url=deviceapi_url, connector=aiohttp.TCPConnector(verify_ssl=False))
+    try:
+        yield session
+    finally:
+        await session.close()
