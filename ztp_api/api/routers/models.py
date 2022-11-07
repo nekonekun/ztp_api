@@ -2,7 +2,7 @@ from fastapi import APIRouter, Query, Depends
 from ztp_api.api import crud, schemas, models
 from ztp_api.api.dependencies import get_db
 
-models_router = APIRouter(prefix='/models')
+models_router = APIRouter()
 
 
 @models_router.get('/', response_model=list[schemas.Model])
