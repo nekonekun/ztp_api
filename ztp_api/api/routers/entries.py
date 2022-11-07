@@ -392,8 +392,8 @@ async def entries_collect_settings(entry_id: int, db=Depends(get_db), da=Depends
         description = response['value']
         port_schema[current_port] = {'description': '', 'tagged': [], 'untagged': []}
         port_schema[current_port]['description'] = description
-        port_schema[current_port]['tagged'] = list(filter(lambda x: current_port in untagged_ports[x], untagged_ports.keys()))
-        port_schema[current_port]['untagged'] = list(filter(lambda x: current_port in tagged_ports[x], tagged_ports.keys()))
+        port_schema[current_port]['tagged'] = list(filter(lambda x: current_port in tagged_ports[x], tagged_ports.keys()))
+        port_schema[current_port]['untagged'] = list(filter(lambda x: current_port in untagged_ports[x], untagged_ports.keys()))
 
     answer = await crud.entry.update(db=db, db_obj=entry, obj_in={
         'original_port_settings': port_schema,
