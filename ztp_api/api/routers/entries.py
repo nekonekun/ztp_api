@@ -323,7 +323,7 @@ async def entries_ztp_stop(entry_id: int,
 
 
 @entries_router.post('/{entry_id}/collect_settings')
-async def entries_collect_settings(entry_id: int, db=Depends(get_db), da=Depends(get_deviceapi_session())):
+async def entries_collect_settings(entry_id: int, db=Depends(get_db), da=Depends(get_deviceapi_session)):
     def hex_to_portlist(hexstring: str) -> list[int]:
         return [index
                 for index, value
