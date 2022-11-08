@@ -372,28 +372,28 @@ async def entries_collect_settings(entry_id: int, db=Depends(get_db),
     async with da:
         async with da.get(
                 '/snmp/v2/walk',
-                params={'ip': '172.22.24.25',
+                params={'ip': entry.ip_address.exploded,
                         'oid': '1.3.6.1.2.1.31.1.1.1.18'}
         ) as response:
             descriptions = (await response.json())['response']
 
         async with da.get(
                 '/snmp/v2/walk',
-                params={'ip': '172.22.24.25',
+                params={'ip': entry.ip_address.exploded,
                         'oid': '1.3.6.1.2.1.17.7.1.4.3.1.1'}
         ) as response:
             vlan_names = await response.json()
 
         async with da.get(
                 '/snmp/v2/walk',
-                params={'ip': '172.22.24.25',
+                params={'ip': entry.ip_address.exploded,
                         'oid': '1.3.6.1.2.1.17.7.1.4.3.1.2'}
         ) as response:
             all_ports = await response.json()
 
         async with da.get(
                 '/snmp/v2/walk',
-                params={'ip': '172.22.24.25',
+                params={'ip': entry.ip_address.exploded,
                         'oid': '1.3.6.1.2.1.17.7.1.4.3.1.4'}
         ) as response:
             untagged_ports = await response.json()
