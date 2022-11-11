@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 
 import ipaddress
 import re
-import celery
 import logging
 from jinja2 import Template
 
@@ -244,6 +243,8 @@ async def entries_create(req: schemas.EntryCreateRequest,
                         is_hide_ifaces_data=1)
                 except ValueError as exc:
                     break
+                except AttributeError as exc:
+                    break
                 parent_switch = neighbour_data[0].host
                 new_entry_object['parent_switch'] = parent_switch
                 new_entry_object['parent_port'] = parent_port
@@ -318,27 +319,21 @@ async def entries_ztp_start(entry_id: int,
                             db=Depends(get_db),
                             cel=Depends(get_celery),
                             nb=Depends(get_netbox_session)):
-    logging.error('START')
     entry = await crud.entry.get(db=db, id=entry_id)
-    logging.error('ENTRY GOT')
     async with nb.get('/api/ipam/prefixes/', params={
         'contains': entry.ip_address.exploded}) as response:
         answer = await response.json()
-    logging.error('NETBOX RESPONSE GOT')
     prefix_list = answer['results']
     prefix_list.sort(key=lambda x: ipaddress.ip_network(x['prefix']).prefixlen)
     prefix_info = prefix_list[-1]
     vlan_info = prefix_info.get('vlan')
     vlan_id = vlan_info['vid']
-    logging.error('VLAN TAG GOT')
     task = cel.send_task('ztp_api.celery.tasks.ztp',
                          (entry.ip_address.exploded, entry.autochange_vlans,
                           entry.parent_switch.exploded, entry.parent_port,
                           vlan_id))
-    logging.error('TASK CREATED')
     answer = await crud.entry.update(db=db, db_obj=entry,
                                      obj_in={'celery_id': task.id})
-    logging.error('TASK ID INSERTED')
     return answer
 
 
@@ -361,9 +356,9 @@ async def entries_collect_settings(entry_id: int, db=Depends(get_db),
         return [index
                 for index, value
                 in enumerate(''.join([
-                bin(int(char, 16))[2:].zfill(4)
-                for char in hexstring
-            ]), 1)
+                    bin(int(char, 16))[2:].zfill(4)
+                    for char in hexstring
+                ]), 1)
                 if value == '1']
 
     entry = await crud.entry.get(db=db, id=entry_id)
