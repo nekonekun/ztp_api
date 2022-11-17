@@ -76,7 +76,7 @@ async def entries_create(req: schemas.EntryCreateRequest,
         async with nb.get('/api/ipam/prefixes/',
                           params={'prefix': subnet}) as response:
             answer = await response.json()
-            if len(answer['results']) != 1:
+            if len(answer['results']) == 0:
                 raise HTTPException(status_code=422, detail=[
                     {
                         'field': 'taskId',
@@ -84,7 +84,12 @@ async def entries_create(req: schemas.EntryCreateRequest,
                     }
                 ]
                                     )
-            prefix_info = answer['results'][0]
+            prefixes = answer['results']
+            prefixes.sort(
+                key=lambda x: ipaddress.ip_network(x['prefix']).prefixlen,
+                reverse=True,
+            )
+            prefix_info = prefixes[0]
             vlan_info = prefix_info.get('vlan')
             if not vlan_info:
                 raise HTTPException(status_code=422, detail=[
@@ -145,15 +150,20 @@ async def entries_create(req: schemas.EntryCreateRequest,
         async with nb.get('/api/ipam/prefixes/', params={
             'contains': req.ip_address.exploded}) as response:
             answer = await response.json()
-            if len(answer['results']) != 1:
-                raise HTTPException(status_code=422, detail=[
-                    {
-                        'field': 'ip',
-                        'msg': 'Сетка вышестоящего свича не ищется в нетбоксе',
-                    }
-                ]
+            if len(answer['results']) == 0:
+                raise HTTPException(status_code=422,
+                                    detail=[
+                                        {'field': 'ip',
+                                         'msg': 'Сетка вышестоящего свича '
+                                                'не ищется в нетбоксе',}
+                                    ]
                                     )
-            prefix_info = answer['results'][0]
+            prefixes = answer['results']
+            prefixes.sort(
+                key=lambda x: ipaddress.ip_network(x['prefix']).prefixlen,
+                reverse=True,
+            )
+            prefix_info = prefixes[0]
             vlan_info = prefix_info.get('vlan')
             if not vlan_info:
                 raise HTTPException(status_code=422, detail=[
