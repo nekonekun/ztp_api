@@ -32,7 +32,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             if value
         }
         if filter_params:
-            statement = statement.filter_by(filter_params)
+            statement = statement.filter_by(**filter_params)
         statement = statement.offset(skip).limit(limit)
         response = await db.execute(statement)
         target_obj = response.scalars().all()
