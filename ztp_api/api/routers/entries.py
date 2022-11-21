@@ -375,7 +375,7 @@ async def entries_collect_settings(entry_id: int, db=Depends(get_db),
     port_schema = entry.original_port_settings
 
     async with da:
-        descriptions = {}
+        descriptions = []
         current_portnum = 1
         while True:
             async with da.get(
@@ -389,7 +389,7 @@ async def entries_collect_settings(entry_id: int, db=Depends(get_db),
                 value = response['value']
             if value == 'No Such Instance currently exists at this OID':
                 break
-            descriptions[oid] = value
+            descriptions.append({'oid': oid, 'value': value})
             current_portnum += 1
 
 
