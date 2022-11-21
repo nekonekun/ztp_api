@@ -23,7 +23,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         return target_obj
 
     async def get_multi(
-        self, db: AsyncSession, *, skip: int = 0, limit: int = 100, **kwargs
+        self, db: AsyncSession, *, skip: int = 0, limit: int = 100, order_by: str = 'id', **kwargs
     ) -> List[ModelType]:
         statement = select(self.model)
         filter_params = {
@@ -34,6 +34,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         if filter_params:
             statement = statement.filter_by(**filter_params)
         statement = statement.offset(skip).limit(limit)
+        statement = statement.order_by(order_by)
         response = await db.execute(statement)
         target_obj = response.scalars().all()
         return target_obj

@@ -18,11 +18,13 @@ entries_router = APIRouter()
 @entries_router.get('/', response_model=list[schemas.Entry])
 async def entries_list(skip: int = 0,
                        limit: int = 100,
+                       order_by: str = 'id',
                        status: str | None = None,
                        db=Depends(get_db)):
     entries = await crud.entry.get_multi(db,
                                          skip=skip,
                                          limit=limit,
+                                         order_by=order_by,
                                          status=status)
     return entries
 
