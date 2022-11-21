@@ -492,7 +492,7 @@ async def generate_full_config(entry_id: int,
     }
     templates_folder = settings.TFTP_FOLDER_STRUCTURE['templates_full']
     template_file = tftp.download(model.default_full_config, templates_folder)
-    template = Template(template_file)
+    template = Template(template_file, trim_blocks=True)
 
     full_config = template.render(**config_variables)
 
