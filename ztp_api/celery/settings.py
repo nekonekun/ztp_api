@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     DEVICEAPI_URL: HttpUrl
     TELEGRAM_BOT_TOKEN: str
     TELEGRAM_CHAT_IDS: list[int]
+    SELF_URL: str
 
     class Config:
         env_prefix = 'ZTPAPIRQ_'

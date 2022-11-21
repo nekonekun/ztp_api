@@ -1,9 +1,11 @@
+import datetime
+
 from celery import current_app
 from aiogram import Bot
 import re
 import asyncio
 from typing import Literal
-from ztp_api.celery.dependencies import get_deviceapi_session, get_ftp_session, get_telegram_bot, get_settings
+from ztp_api.celery.dependencies import get_deviceapi_session, get_ftp_session, get_telegram_bot, get_settings, get_self_session
 
 
 def hex_to_portlist(hexstring: str) -> list[int]:
@@ -155,10 +157,17 @@ def ztp(ip: str,
         parent_switch: str = None,
         parent_port: str = None,
         management_vlan: str = None,
-        pull_full_config: bool = False,
+        push_full_config: bool = False,
         full_config_commands: list[str] = None,
         full_config_filename: str = None):
-    asyncio.run(async_ztp(ip, autochange_vlan, parent_switch, parent_port, management_vlan, pull_full_config, full_config_commands, full_config_filename))
+    asyncio.run(async_ztp(ip,
+                          autochange_vlan,
+                          parent_switch,
+                          parent_port,
+                          management_vlan,
+                          push_full_config,
+                          full_config_commands,
+                          full_config_filename))
 
 
 async def async_ztp(ip: str,
@@ -218,7 +227,45 @@ async def async_ztp(ip: str,
 
     if push_full_config:
         await send_message(bot, 'Заливаем полный конфиг', message_prefix)
+        commands = []
+        if full_config_filename:
+            session = await get_ftp_session()
+            ls = [file[0].name for file in
+                  await session.list('/tftp/configs/full')]
+            if full_config_filename in ls:
+                cfgfile = ''
+                async with session.download_stream(f'/tftp/configs/full/{full_config_filename}') as stream:
+                    async for block in stream.iter_by_block():
+                        cfgfile += block.decode('utf-8')
+                commands.extend(cfgfile.split('\n'))
+            await session.quit()
+        if full_config_commands:
+            commands.extend(full_config_commands)
+        if commands:
+            commands = ['enable command logging', 'disable clipaging'] + \
+                       commands + \
+                       ['enable clipaging', 'disable command logging']
+            session = get_deviceapi_session()
+            request_data = {
+                'ip_address': ip,
+                'connection_mode': 'telnet',
+                'commands': commands,
+            }
+            await session.post('/terminal/send_commands', json=request_data)
+            await send_message(bot, 'Готово', message_prefix)
+        else:
+            await send_message(bot, 'Команд для заливки не нашлось', message_prefix)
 
-    # TODO запрос в API на удаление celery_id
-    # TODO запрос в API на изменение статуса
+
+    self_session = get_self_session()
+    async with self_session.get('/entries/') as response:
+        response = await response.json()
+        response = list(filter(lambda x: x['ip_address'] == ip, response))[0]
+        entry_id = response['id']
+    await self_session.patch(f'/entries/{entry_id}', json={
+        'status': 'DONE',
+        'celery_id': None,
+        'finished_at': datetime.datetime.now()
+    })
+
     # TODO изменение документации

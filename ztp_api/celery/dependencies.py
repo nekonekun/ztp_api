@@ -16,6 +16,11 @@ def get_deviceapi_session():
     return session
 
 
+def get_self_session():
+    settings = get_settings()
+    session = aiohttp.ClientSession(settings.SELF_URL)
+    return session
+
 async def get_ftp_session():
     settings = get_settings()
     session = aioftp.Client()
@@ -28,3 +33,5 @@ def get_telegram_bot():
     settings = get_settings()
     bot = Bot(token=settings.TELEGRAM_BOT_TOKEN)
     return bot
+
+
