@@ -375,12 +375,23 @@ async def entries_collect_settings(entry_id: int, db=Depends(get_db),
     port_schema = entry.original_port_settings
 
     async with da:
-        async with da.get(
-                '/snmp/v2/walk',
-                params={'ip': entry.ip_address.exploded,
-                        'oid': '1.3.6.1.2.1.31.1.1.1.18'}
-        ) as response:
-            descriptions = (await response.json())['response']
+        descriptions = {}
+        current_portnum = 1
+        while True:
+            async with da.get(
+                    '/snmp/v2/get',
+                    params={'ip': entry.ip_address.exploded,
+                            'oid': f'1.3.6.1.2.1.31.1.1.1.18.{current_portnum}'}
+            ) as response:
+                response = await response.json()
+                response = response['response'][0]
+                oid = response['oid']
+                value = response['value']
+            if value == 'No Such Instance currently exists at this OID':
+                break
+            descriptions[oid] = value
+            current_portnum += 1
+
 
         async with da.get(
                 '/snmp/v2/walk',
