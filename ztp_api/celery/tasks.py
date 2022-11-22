@@ -265,7 +265,7 @@ async def async_ztp(ip: str,
     await self_session.patch(f'/entries/{entry_id}', json={
         'status': 'DONE',
         'celery_id': None,
-        'finished_at': datetime.datetime.now()
+        'finished_at': datetime.datetime.now().isoformat()
     })
 
     # TODO изменение документации
