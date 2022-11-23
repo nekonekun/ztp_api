@@ -228,9 +228,15 @@ async def entries_create(req: schemas.EntryCreateRequest,
             ]
                                 )
         try:
-            device_data = await us.device.get_data(object_type='switch',
-                                                   object_id=device_id,
-                                                   is_hide_ifaces_data=1)
+            # device_data = await us.device.get_data(object_type='switch',
+            #                                        object_id=device_id,
+            #                                        is_hide_ifaces_data=1)
+            devices_data = await us.request(cat='device',
+                                            action='get_data',
+                                            object_type='switch',
+                                            object_id=device_id,
+                                            is_hide_ifaces_data=1
+                                            )
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=[
                 {
@@ -239,7 +245,8 @@ async def entries_create(req: schemas.EntryCreateRequest,
                 }
             ]
                                 )
-        uplink = device_data[0].uplink_iface
+        device_data = devices_data[0]
+        uplink = device_data['uplink_iface']
         if len(uplink) == 1:
             for uplink_port in uplink:
                 try:
@@ -255,7 +262,9 @@ async def entries_create(req: schemas.EntryCreateRequest,
                     break
                 parent_port = uplink_neighbour.interface
                 try:
-                    neighbour_data = await us.device.get_data(
+                    neighbour_data = await us.request(
+                        cat='device',
+                        action='get_data',
                         object_type='switch',
                         object_id=uplink_neighbour.object_id,
                         is_hide_ifaces_data=1)
@@ -263,7 +272,7 @@ async def entries_create(req: schemas.EntryCreateRequest,
                     break
                 except AttributeError as exc:
                     break
-                parent_switch = neighbour_data[0].host
+                parent_switch = neighbour_data[0]['host']
                 new_entry_object['parent_switch'] = parent_switch
                 new_entry_object['parent_port'] = parent_port
         new_entry_object['ip_address'] = req.ip_address.exploded
