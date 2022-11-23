@@ -245,7 +245,7 @@ async def entries_create(req: schemas.EntryCreateRequest,
                 }
             ]
                                 )
-        devices_data = list(devices_data.values())
+        devices_data = list(devices_data['data'].values())
         device_data = devices_data[0]
         uplink = device_data['uplink_iface']
         if len(uplink) == 1:
