@@ -40,6 +40,7 @@ class EntryCreateRequest(BaseModel):
 class EntryPatchRequest(BaseModel):
     started_at: datetime.datetime = None
     finished_at: datetime.datetime = None
+    celery_id: str = None
     status: Any = None
     employee_id: int = None
     node_id: int = None
