@@ -1,3 +1,5 @@
+import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 
 import ipaddress
@@ -228,9 +230,6 @@ async def entries_create(req: schemas.EntryCreateRequest,
             ]
                                 )
         try:
-            # device_data = await us.device.get_data(object_type='switch',
-            #                                        object_id=device_id,
-            #                                        is_hide_ifaces_data=1)
             devices_data = await us.request(cat='device',
                                             action='get_data',
                                             object_type='switch',
@@ -356,12 +355,21 @@ async def entries_ztp_start(entry_id: int,
     prefix_info = prefix_list[-1]
     vlan_info = prefix_info.get('vlan')
     vlan_id = vlan_info['vid']
-    task = cel.send_task('ztp_api.celery.tasks.ztp',
-                         (entry.ip_address.exploded, entry.autochange_vlans,
-                          entry.parent_switch.exploded, entry.parent_port,
-                          vlan_id))
-    answer = await crud.entry.update(db=db, db_obj=entry,
-                                     obj_in={'celery_id': task.id})
+    task = cel.send_task(
+        'ztp_api.celery.tasks.ztp',
+        (entry.ip_address.exploded, entry.autochange_vlans,
+         entry.parent_switch.exploded if entry.parent_switch else None,
+         entry.parent_port,
+         vlan_id)
+    )
+    answer = await crud.entry.update(
+        db=db,
+        db_obj=entry,
+        obj_in={
+            'celery_id': task.id,
+            'started_at': datetime.datetime.now().isoformat()
+        }
+    )
     return answer
 
 

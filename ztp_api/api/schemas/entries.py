@@ -3,6 +3,7 @@ from typing import Literal, Any, Optional
 import ipaddress
 import datetime
 
+
 class NewHouseData(BaseModel):
     task_id: int = None
 
@@ -25,7 +26,10 @@ class EntryCreateRequest(BaseModel):
     node_id: int = Field(..., alias='nodeId')
     serial_number: str = Field(..., alias='serial')
     mac_address: str = Field(..., alias='mac')
-    mount_type: Literal['newHouse', 'newSwitch', 'changeSwitch'] = Field(..., alias='mountType')
+    mount_type: Literal['newHouse', 'newSwitch', 'changeSwitch'] = Field(
+        ...,
+        alias='mountType'
+    )
 
     ip_address: Optional[ipaddress.IPv4Address] = Field(alias='ip')
 
