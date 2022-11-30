@@ -367,7 +367,7 @@ async def entries_ztp_start(entry_id: int,
         db_obj=entry,
         obj_in={
             'celery_id': task.id,
-            'started_at': datetime.datetime.now().isoformat()
+            'started_at': datetime.datetime.now()
         }
     )
     return answer
