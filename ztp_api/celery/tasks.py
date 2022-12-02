@@ -194,6 +194,7 @@ async def async_ztp(ip: str,
             for vlan in untagged:
                 await modify_port_vlan(parent_switch, parent_port, vlan, 'delete')
             await send_message(bot, 'Сняли антаг вланы', message_prefix)
+        await modify_port_vlan(parent_switch, parent_port, management_vlan, 'delete')
         await modify_port_vlan(parent_switch, parent_port, management_vlan, 'add', 'untagged')
         await send_message(bot, f'Навесили управление ({management_vlan}) антагом', message_prefix)
 
@@ -213,6 +214,7 @@ async def async_ztp(ip: str,
 
     if autochange_vlan:
         await send_message(bot, 'Выбрано автоперевешивание', message_prefix)
+        await modify_port_vlan(parent_switch, parent_port, management_vlan, 'delete')
         await modify_port_vlan(parent_switch, parent_port, management_vlan, 'add', 'tagged')
         await send_message(bot, f'Добавили управление {management_vlan} тагом', message_prefix)
         if untagged:
