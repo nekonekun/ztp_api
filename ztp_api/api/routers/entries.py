@@ -304,10 +304,21 @@ async def entries_create(req: schemas.EntryCreateRequest,
                             )
     model = model[0]
     new_entry_object['model_id'] = model.id
+
+    async with nb.get('/api/ipam/prefixes/', params={'contains': new_entry_object['ip_address']}) as response:
+        results = await response.json()
+    prefix = max(results['results'], key=lambda x: int(x['prefix'].split('/')[1]))  # maybe use ip_interface.netmask
+    mgmt_vlan = prefix['vlan']
     empty_port_settings = {
-        portnum: {'description': '', 'tagged': [], 'untagged': []}
-        for portnum in range(1, model.portcount + 1)}
-    new_entry_object['vlan_settings'] = {}
+        portnum: {'description': '',
+                  'tagged': [mgmt_vlan['vid']],
+                  'untagged': [1]}
+        for portnum in range(1, model.portcount + 1)
+    }
+    new_entry_object['vlan_settings'] = {
+        '1': 'default',
+        str(mgmt_vlan['vid']): mgmt_vlan['name'].replace(' ', ''),
+    }
     new_entry_object['modified_vlan_settings'] = {}
     new_entry_object['original_port_settings'] = empty_port_settings
     new_entry_object['port_movements'] = {}
