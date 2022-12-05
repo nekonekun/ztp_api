@@ -23,7 +23,13 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         return target_obj
 
     async def get_multi(
-        self, db: AsyncSession, *, skip: int = 0, limit: int = 100, order_by: str = 'id', **kwargs
+            self,
+            db: AsyncSession,
+            *,
+            skip: int = 0,
+            limit: int = 100,
+            order_by: str = 'id',
+            **kwargs
     ) -> List[ModelType]:
         statement = select(self.model)
         filter_params = {
@@ -39,7 +45,12 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         target_obj = response.scalars().all()
         return target_obj
 
-    async def create(self, db: AsyncSession, *, obj_in: CreateSchemaType) -> ModelType:
+    async def create(
+            self,
+            db: AsyncSession,
+            *,
+            obj_in: CreateSchemaType
+    ) -> ModelType:
         obj_in_data = jsonable_encoder(obj_in)
         db_obj = self.model(**obj_in_data)  # type: ignore
         db.add(db_obj)

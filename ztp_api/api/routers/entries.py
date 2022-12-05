@@ -272,7 +272,10 @@ async def entries_create(req: schemas.EntryCreateRequest,
                     break
                 except AttributeError as exc:
                     break
-                parent_switch = neighbour_data[0]['host']
+                try:
+                    parent_switch = neighbour_data[0]['host']
+                except:
+                    parent_switch = None
                 new_entry_object['parent_switch'] = parent_switch
                 new_entry_object['parent_port'] = parent_port
         new_entry_object['ip_address'] = req.ip_address.exploded
