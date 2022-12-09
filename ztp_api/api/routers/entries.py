@@ -518,11 +518,13 @@ async def generate_full_config(entry_id: int,
     portcount = model.portcount
     port_settings = entry.modified_port_settings
     vlan_settings = entry.modified_vlan_settings
+    ip_address = entry.ip_address.exploded
     config_variables = {
         'portcount': portcount,
         'management_vlan_tag': management_vlan_tag,
         'port_settings': port_settings,
         'vlan_settings': vlan_settings,
+        'ip_address': ip_address,
     }
     templates_folder = settings.TFTP_FOLDER_STRUCTURE['templates_full']
     template_file = tftp.download(model.default_full_config, templates_folder)
