@@ -34,13 +34,13 @@ def make_message_text(step: int = 1, **kwargs):
         1: 'Бот читает настройки из базы',
         2: 'Бот получает настройки порта {parent_port} на {parent_switch}',
         3: 'Бот настраивает {parent_port} порт на {parent_switch} '
-           '(убирает {",".join(untagged)}, '
+           '(убирает {untagged}, '
            'добавляет {management_vlan} антагом)',
         4: 'Свич получает настройки по DHCP',
         5: 'Свич качает файлы',
         6: 'Бот настраивает {parent_port} порт на {parent_switch} '
            '(добавляет {management_vlan} тагом, '
-           'добавляет {",".join(untagged)} антагом)',
+           'добавляет {untagged} антагом)',
         7: 'Свич ребутается',
         8: 'Готово'
     }
@@ -240,7 +240,7 @@ async def async_ztp(ip: str,
             await bot.edit_message_text(text=make_message_text(step=2, **message_params), chat_id=chat_id, message_id=message_id)
         vlans_on_uplink = await get_port_vlan(parent_switch, parent_port)
         untagged = vlans_on_uplink['untagged']
-        message_params['untagged'] = untagged
+        message_params['untagged'] = ', '.join(untagged)
         for chat_id, message_id in message_ids.items():
             await bot.edit_message_text(text=make_message_text(step=3, **message_params), chat_id=chat_id, message_id=message_id)
         if untagged:
