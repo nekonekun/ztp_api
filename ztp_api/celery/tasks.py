@@ -312,7 +312,7 @@ async def async_ztp(ip: str,
 
 
     self_session = get_self_session()
-    async with self_session.get('/entries/', params={'status': 'IN_PROGRESS'}) as response:
+    async with self_session.get('/entries/') as response:
         response = await response.json()
         response = list(filter(lambda x: x['ip_address'] == ip, response))[0]
         entry_id = response['id']
