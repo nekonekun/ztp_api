@@ -27,46 +27,6 @@ async def send_message(bot: Bot, message: str, prefix: str = ''):
         await bot.send_message(chat_id=chat_id, text=prefix+message)
 
 
-async def make_message_text(step: int = 1, **kwargs):
-    steps_header = 'Свич {ip}'
-
-    steps_autovlan = {
-        1: 'Бот читает настройки из базы',
-        2: 'Бот получает настройки порта {} на {}',
-        3: 'Бот настраивает {parent_port} порт на {parent_switch} '
-           '(убирает {",".join(untagged)}, '
-           'добавляет {management_vlan} антагом)',
-        4: 'Свич получает настройки по DHCP',
-        5: 'Свич качает файлы',
-        6: 'Бот настраивает {parent_port} порт на {parent_switch} '
-           '(добавляет {management_vlan} тагом, '
-           'добавляет {",".join(untagged)} антагом)',
-        7: 'Свич ребутается',
-        8: 'Готово'
-    }
-
-    steps_noautovlan = {
-        1: 'Бот читает настройки из базы',
-        4: 'Свич получает настройки по DHCP',
-        5: 'Свич качает файлы',
-        7: 'Свич ребутается',
-        8: 'Готово'
-    }
-    text = steps_header.format(**kwargs)
-    text += '\n'
-    steps = steps_autovlan if kwargs.get('autochange_vlan') else steps_noautovlan
-    for step_index, step_text in steps.items():
-        if step_index < step:
-            text += '☒ '
-            text += step_text.format(**kwargs)
-            text += '\n'
-        if step_index == step:
-            text += '☐ '
-            text += step_text.format(**kwargs)
-            text += '\n'
-    return text
-
-
 async def get_vlan_table(ip):
     session = get_deviceapi_session()
 
@@ -219,69 +179,56 @@ async def async_ztp(ip: str,
                     full_config_commands: list[str] = None,
                     full_config_filename: str = None):
     bot = get_telegram_bot()
-    settings = get_settings()
-    chat_ids = settings.TELEGRAM_CHAT_IDS
-    messages = []
-    message_params = {
-        'ip': ip,
-        'management_vlan': management_vlan,
-        'autochange_vlan': autochange_vlan,
-    }
-    for chat_id in chat_ids:
-        text = make_message_text(step=1, **message_params)
-        message = await bot.send_message(chat_id=chat_id, text=text)
-        messages.append(message)
+    message_prefix = f'[{ip}] '
     untagged = None
 
+    await send_message(bot, f'Начали', message_prefix)
+
     if autochange_vlan:
-        message_params['parent_switch'] = parent_switch
-        message_params['parent_port'] = parent_port
-        for message in messages:
-            await message.edit_text(text=make_message_text(step=2, **message_params))
+        await send_message(bot, 'Выбрано автоперевешивание', message_prefix)
+        await send_message(bot, f'Свич {parent_switch} порт {parent_port}', message_prefix)
         vlans_on_uplink = await get_port_vlan(parent_switch, parent_port)
         untagged = vlans_on_uplink['untagged']
-        message_params['untagged'] = untagged
-        for message in messages:
-            await message.edit_text(text=make_message_text(step=3, **message_params))
         if untagged:
+            await send_message(bot, 'Запомнили антаг вланы: ' + ', '.join(map(str, untagged)), message_prefix)
             for vlan in untagged:
                 await modify_port_vlan(parent_switch, parent_port, vlan, 'delete')
+            await send_message(bot, 'Сняли антаг вланы', message_prefix)
         await modify_port_vlan(parent_switch, parent_port, management_vlan, 'delete')
         await modify_port_vlan(parent_switch, parent_port, management_vlan, 'add', 'untagged')
+        await send_message(bot, f'Навесили управление ({management_vlan}) антагом', message_prefix)
 
-    for message in messages:
-        await message.edit_text(text=make_message_text(step=4, **message_params))
+    await send_message(bot, 'Ждем пока запингуется', message_prefix)
     while not (await ping(ip)):
         await asyncio.sleep(1)
-    for message in messages:
-        await message.edit_text(text=make_message_text(step=5, **message_params))
+    await send_message(bot, 'Начал пинговаться', message_prefix)
 
-
+    await send_message(bot, 'Ждем пока скачает оба файла и потеряется', message_prefix)
     firmware_requested, config_requested = await check_files_requested(ip)
     available = await ping(ip)
     while not (firmware_requested and config_requested and not available):
         await asyncio.sleep(1)
         firmware_requested, config_requested = await check_files_requested(ip)
         available = await ping(ip)
+    await send_message(bot, 'Докачал и ребутается', message_prefix)
 
     if autochange_vlan:
-        for message in messages:
-            await message.edit_text(text=make_message_text(step=6, **message_params))
+        await send_message(bot, 'Выбрано автоперевешивание', message_prefix)
         await modify_port_vlan(parent_switch, parent_port, management_vlan, 'delete')
         await modify_port_vlan(parent_switch, parent_port, management_vlan, 'add', 'tagged')
+        await send_message(bot, f'Добавили управление {management_vlan} тагом', message_prefix)
         if untagged:
             for vlan in untagged:
                 await modify_port_vlan(parent_switch, parent_port, vlan, 'add', 'untagged')
+            await send_message(bot, 'Вернули антаги: ' + ', '.join(map(str, untagged)), message_prefix)
 
-    for message in messages:
-        await message.edit_text(text=make_message_text(step=7, **message_params))
+    await send_message(bot, 'Ждем пока запингуется после перезагрузки', message_prefix)
     while not (await ping(ip)):
         await asyncio.sleep(1)
-    for message in messages:
-        await message.edit_text(text=make_message_text(step=8, **message_params))
-
+    await send_message(bot, 'Дождались', message_prefix)
 
     if push_full_config:
+        await send_message(bot, 'Заливаем полный конфиг', message_prefix)
         commands = []
         if full_config_filename:
             session = await get_ftp_session()
@@ -307,8 +254,9 @@ async def async_ztp(ip: str,
                 'commands': commands,
             }
             await session.post('/terminal/send_commands', json=request_data)
+            await send_message(bot, 'Готово', message_prefix)
         else:
-            pass
+            await send_message(bot, 'Команд для заливки не нашлось', message_prefix)
 
 
     self_session = get_self_session()
