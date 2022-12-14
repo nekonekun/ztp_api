@@ -27,7 +27,7 @@ async def send_message(bot: Bot, message: str, prefix: str = ''):
         await bot.send_message(chat_id=chat_id, text=prefix+message)
 
 
-async def make_message_text(step: int = 1, **kwargs):
+def make_message_text(step: int = 1, **kwargs):
     steps_header = 'Свич {ip}'
 
     steps_autovlan = {
