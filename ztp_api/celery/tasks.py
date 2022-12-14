@@ -32,7 +32,7 @@ def make_message_text(step: int = 1, **kwargs):
 
     steps_autovlan = {
         1: 'Бот читает настройки из базы',
-        2: 'Бот получает настройки порта {parent_port} на {parent_switch}',
+        2: 'Бот получает настройки порта {} на {}',
         3: 'Бот настраивает {parent_port} порт на {parent_switch} '
            '(убирает {",".join(untagged)}, '
            'добавляет {management_vlan} антагом)',
