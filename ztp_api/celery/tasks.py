@@ -240,7 +240,7 @@ async def async_ztp(ip: str,
             await bot.edit_message_text(text=make_message_text(step=2, **message_params), chat_id=chat_id, message_id=message_id)
         vlans_on_uplink = await get_port_vlan(parent_switch, parent_port)
         untagged = vlans_on_uplink['untagged']
-        message_params['untagged'] = ', '.join(untagged)
+        message_params['untagged'] = ', '.join(map(str, untagged))
         for chat_id, message_id in message_ids.items():
             await bot.edit_message_text(text=make_message_text(step=3, **message_params), chat_id=chat_id, message_id=message_id)
         if untagged:
