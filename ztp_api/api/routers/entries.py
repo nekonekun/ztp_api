@@ -318,11 +318,16 @@ async def entries_create(req: schemas.EntryCreateRequest,
                   'untagged': [1]}
         for portnum in range(1, model.portcount + 1)
     }
-    new_entry_object['vlan_settings'] = {
+    empty_vlan_settings = {
         '1': 'default',
         str(mgmt_vlan['vid']): mgmt_vlan['name'].replace(' ', ''),
     }
-    new_entry_object['modified_vlan_settings'] = {}
+    empty_modified_vlan_settings = {
+        '1': 'default',
+        str(mgmt_vlan['vid']): mgmt_vlan['name'].replace(' ', ''),
+    }
+    new_entry_object['vlan_settings'] = empty_vlan_settings
+    new_entry_object['modified_vlan_settings'] = empty_modified_vlan_settings
     new_entry_object['original_port_settings'] = empty_port_settings
     new_entry_object['port_movements'] = {}
     new_entry_object['modified_port_settings'] = empty_port_settings
