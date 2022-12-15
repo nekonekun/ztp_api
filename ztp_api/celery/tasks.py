@@ -248,6 +248,8 @@ async def async_ztp(ip: str,
                 await modify_port_vlan(parent_switch, parent_port, vlan, 'delete')
         await modify_port_vlan(parent_switch, parent_port, management_vlan, 'delete')
         await modify_port_vlan(parent_switch, parent_port, management_vlan, 'add', 'untagged')
+    else:
+        await asyncio.sleep(60)
 
     for chat_id, message_id in message_ids.items():
         await bot.edit_message_text(text=make_message_text(step=4, **message_params), chat_id=chat_id, message_id=message_id)

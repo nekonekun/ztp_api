@@ -33,5 +33,3 @@ async def generate_initial_config(device: Entry, nb, tftp, settings, initial_con
     configuration_folder = settings.TFTP_FOLDER_STRUCTURE['configs_initial']
     tftp.upload(configuration_filename, configuration, configuration_folder)
 
-# TODO Генерация полного конфига
-# TODO Сам процесс
