@@ -5,7 +5,8 @@ from aiogram import Bot
 import re
 import asyncio
 from typing import Literal
-from ztp_api.celery.dependencies import get_deviceapi_session, get_ftp_session, get_telegram_bot, get_settings, get_self_session
+from ztp_api.celery.dependencies import get_deviceapi_session, \
+    get_ftp_session, get_telegram_bot, get_settings, get_self_session
 
 
 def hex_to_portlist(hexstring: str) -> list[int]:
@@ -18,13 +19,6 @@ def hex_to_portlist(hexstring: str) -> list[int]:
 def portlist_to_hex(portlist: list[int], hexlen: int) -> str:
     resultlist = ['1' if i in portlist else '0' for i in range(1, hexlen * 4 + 1)]
     return hex(int(''.join(resultlist), 2))[2:].zfill(hexlen)
-
-
-async def send_message(bot: Bot, message: str, prefix: str = ''):
-    settings = get_settings()
-    chat_ids = settings.TELEGRAM_CHAT_IDS
-    for chat_id in chat_ids:
-        await bot.send_message(chat_id=chat_id, text=prefix+message)
 
 
 def make_message_text(step: int = 1, **kwargs):
@@ -42,7 +36,7 @@ def make_message_text(step: int = 1, **kwargs):
            '(добавляет {management_vlan} тагом, '
            'добавляет {untagged} антагом)',
         7: 'Свич ребутается',
-        8: 'Готово'
+        7.5: 'Готово'
     }
 
     steps_noautovlan = {
@@ -50,7 +44,7 @@ def make_message_text(step: int = 1, **kwargs):
         4: 'Свич получает настройки по DHCP',
         5: 'Свич качает файлы',
         7: 'Свич ребутается',
-        8: 'Готово'
+        7.5: 'Готово'
     }
     text = steps_header.format(**kwargs)
     text += '\n'
